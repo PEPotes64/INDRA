@@ -55,7 +55,7 @@ client.once('ready', async () => {
   }
 });
 
-// Función para generar la tarjeta de rango con Canvas
+// Función para generar la tarjeta de rango con Canvas (con textos claros y borde negro)
 async function generarRankCard(user, xpData) {
   const canvas = Canvas.createCanvas(900, 250);
   const ctx = canvas.getContext('2d');
@@ -64,8 +64,8 @@ async function generarRankCard(user, xpData) {
   const background = await Canvas.loadImage(path.join(__dirname, 'image_14.jpg'));
   ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
 
-  // Capa oscura semitransparente para que resalte el texto
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+  // Capa oscura para que resalte chido el texto
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Avatar circular del usuario
@@ -84,23 +84,35 @@ async function generarRankCard(user, xpData) {
   ctx.drawImage(avatar, avatarX, avatarY, avatarRadius * 2, avatarRadius * 2);
   ctx.restore();
 
-  // Borde blanco del avatar
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = '#ffffff';
+  // Borde brillante al avatar
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = '#00ffcc';
   ctx.stroke();
 
-  // Textos de la tarjeta
-  ctx.fillStyle = '#ffffff';
+  // Estilo de texto con trazo negro pa ke no se lo trague la tormenta
   ctx.textAlign = 'left';
+  ctx.lineWidth = 4;
 
-  ctx.font = 'bold 36px sans-serif';
-  ctx.fillText(user.username, 230, 100);
+  // Nombre del usuario
+  ctx.font = 'bold 38px sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#000000';
+  ctx.strokeText(user.username, 230, 95);
+  ctx.fillText(user.username, 230, 95);
 
-  ctx.font = 'bold 28px sans-serif';
-  ctx.fillText(`NIVEL ${xpData.level}`, 230, 150);
+  // Nivel bien visible en dorado
+  ctx.font = 'bold 32px sans-serif';
+  ctx.fillStyle = '#FFD700';
+  ctx.strokeStyle = '#000000';
+  ctx.strokeText(`NIVEL: ${xpData.level}`, 230, 150);
+  ctx.fillText(`NIVEL: ${xpData.level}`, 230, 150);
 
-  ctx.font = '22px sans-serif';
-  ctx.fillText(`XP: ${xpData.xp} / ${xpData.level * 100}`, 230, 200);
+  // Barra o texto de XP
+  ctx.font = '24px sans-serif';
+  ctx.fillStyle = '#00ffcc';
+  ctx.strokeStyle = '#000000';
+  ctx.strokeText(`XP: ${xpData.xp} / ${xpData.level * 100}`, 230, 205);
+  ctx.fillText(`XP: ${xpData.xp} / ${xpData.level * 100}`, 230, 205);
 
   return canvas.toBuffer();
 }
@@ -133,8 +145,8 @@ client.on('messageCreate', async (message) => {
 
       const levelEmbed = new EmbedBuilder()
         .setColor('#00ffcc')
-        .setTitle('# ¡SUBIDA DE NIVEL! ⚡')
-        .setDescription(`# ¡Felicidades <@${userId}>! Has roto tus límites en el servidor!🆙`)
+        .setTitle('¡SUBIDA DE NIVEL! ⚡')
+        .setDescription(`¡Felicidades <@${userId}>! Has alcanzado el **nivel ${userXpData.level}** rompiendo tus límites > < :v`)
         .setImage('attachment://rank-card.jpg')
         .setFooter({ text: 'Sistema de XP • Zeus', iconURL: client.user.displayAvatarURL() });
 
@@ -177,8 +189,8 @@ client.on('interactionCreate', async (interaction) => {
 
     const adminEmbed = new EmbedBuilder()
       .setColor('#FFD700')
-      .setTitle('# ⚡ Actualización de XP Administrativa')
-      .setDescription(`# Se han sumado **+${cantidad} de XP** a <@${userId}>.`)
+      .setTitle('⚡ Actualización de XP Administrativa')
+      .setDescription(`Se han sumado **+${cantidad} de XP** a <@${userId}>. Nivel actual: **${userXpData.level}**`)
       .setImage('attachment://rank-card.jpg')
       .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
 
