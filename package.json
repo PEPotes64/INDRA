@@ -1,1 +1,15 @@
+{
+  "name": "indragit",
+  "version": "1.0.0",
+  "description": "Bot de niveles y XP para Discord con MongoDB",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.0",
+    "dotenv": "^16.4.5",
+    "mongoose": "^8.2.1"
+  }
+}
 
