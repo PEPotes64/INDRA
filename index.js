@@ -180,15 +180,15 @@ client.on('interactionCreate', async (interaction) => {
     await userXpData.save();
 
     const buffer = await generarRankCard(targetUser, userXpData);
-    const attachment = new AttachmentBuilder(buffer, { name: 'rank-card.jpg' });
+    const attachment = new AttachmentBuilder(buffer, { name: 'rank-card.png' });
 
     const adminEmbed = new EmbedBuilder()
       .setColor('#FFD700')
       .setTitle('⚡ Actualización de XP Administrativa')
-      .setDescription(`# ¡Listo <@${userId}>!\nSe sumaron **+${cantidad} XP**. Nivel actual: **${userXpData.level}**`)
-      .setImage('attachment://rank-card.jpg')
+      .setDescription(`# ¡Listo <@${userId}>!\nSe sumaron **+${cantidad} XP**. Nivel actual: **${userXpData.level}** > < :v`)
       .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
 
+    // Mandamos el embed de texto solito y la imagen limpia como archivo adjunto directo
     await interaction.editReply({ embeds: [adminEmbed], files: [attachment] });
   }
 });
