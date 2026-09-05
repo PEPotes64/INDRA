@@ -54,23 +54,39 @@ client.once('ready', async () => {
   }
 });
 
+// Función para generar la tarjeta leyendo directamente la imagen de tu repositorio
 async function generarRankCard(user, xpData) {
   const canvas = Canvas.createCanvas(900, 250);
   const ctx = canvas.getContext('2d');
 
-  // 1. Rellenar TODO el fondo de sol a sol con un color sólido y opaco (adiós transparencias)
-  ctx.fillStyle = '#0b0f19';
+  // 1. Cargamos y dibujamos la imagen de fondo que ya tienes en el repo
+  try {
+    const bgImage = await Canvas.loadImage('./image_14.jpg');
+    ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+  } catch (e) {
+    console.error('No se pudo cargar la imagen de fondo, usando respaldo sólido:', e);
+    ctx.fillStyle = '#0b0f19';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // Capa oscura semi-transparente opcional para que los textos resalten chido sobre el fondo
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // 2. Marco o cuerpo interno con otro tono sólido para que luzca chido
-  ctx.fillStyle = '#162238';
-  ctx.fillRect(10, 10, canvas.width - 20, canvas.height - 20);
-
-  // 3. Avatar circular del usuario
   const avatarX = 40;
   const avatarY = 50;
   const avatarRadius = 75;
 
+  // Círculo de respaldo para el avatar
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(avatarX + avatarRadius, avatarY + avatarRadius, avatarRadius, 0, Math.PI * 2, true);
+  ctx.closePath();
+  ctx.fillStyle = '#1f2937';
+  ctx.fill();
+  ctx.restore();
+
+  // 2. Avatar circular del usuario
   try {
     const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
     const avatar = await Canvas.loadImage(avatarUrl);
@@ -93,7 +109,7 @@ async function generarRankCard(user, xpData) {
   ctx.arc(avatarX + avatarRadius, avatarY + avatarRadius, avatarRadius, 0, Math.PI * 2, true);
   ctx.stroke();
 
-  // 4. Textos limpios y nítidos
+  // 3. Textos limpios y nítidos
   ctx.textAlign = 'left';
 
   ctx.font = 'bold 36px sans-serif';
@@ -108,8 +124,7 @@ async function generarRankCard(user, xpData) {
   ctx.fillStyle = '#00ffcc';
   ctx.fillText(`XP: ${xpData.xp} / ${xpData.level * 100}`, 230, 195);
 
-  // Retornamos el buffer limpio
-  return canvas.toBuffer();
+  return canvas.toBuffer('image/jpeg', { quality: 0.95 });
 }
 
 // Sistema de XP por mensajes y subida de nivel
@@ -140,7 +155,7 @@ client.on('messageCreate', async (message) => {
       const levelEmbed = new EmbedBuilder()
         .setColor('#00ffcc')
         .setTitle('⚡ SUBIDA DE NIVEL ⚡')
-        .setDescription(`# ¡Felicidades <@${userId}>!\nHas alcanzado el nivel **${userXpData.level}**`)
+        .setDescription(`# ¡Felicidades <@${userId}>!\nHas alcanzado el nivel **${userXpData.level}** > < :v`)
         .setImage('attachment://rank-card.jpg')
         .setFooter({ text: 'Sistema de XP • Zeus', iconURL: client.user.displayAvatarURL() });
 
@@ -153,7 +168,7 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-// Manejo del comando /añadir-xp con deferReply
+// Manejo del comando /añadir-xp
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
@@ -180,18 +195,17 @@ client.on('interactionCreate', async (interaction) => {
     await userXpData.save();
 
     const buffer = await generarRankCard(targetUser, userXpData);
-    const attachment = new AttachmentBuilder(buffer, { name: 'rank-card.png' });
+    const attachment = new AttachmentBuilder(buffer, { name: 'rank-card.jpg' });
 
     const adminEmbed = new EmbedBuilder()
       .setColor('#FFD700')
       .setTitle('⚡ Actualización de XP Administrativa')
       .setDescription(`# ¡Listo <@${userId}>!\nSe sumaron **+${cantidad} XP**. Nivel actual: **${userXpData.level}** > < :v`)
+      .setImage('attachment://rank-card.jpg')
       .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
 
-    // Mandamos el embed de texto solito y la imagen limpia como archivo adjunto directo
     await interaction.editReply({ embeds: [adminEmbed], files: [attachment] });
   }
 });
 
 client.login(process.env.DISCORD_TOKEN);
-
