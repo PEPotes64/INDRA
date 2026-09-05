@@ -59,7 +59,7 @@ client.once('ready', async () => {
 
   const dataAddXp = {
     name: 'añadir-xp',
-    description: 'Añade XP a un maje y resetea',
+    description: 'Añade XP a un maje',
     options: [
       {
         name: 'usuario',
@@ -76,8 +76,28 @@ client.once('ready', async () => {
     ]
   };
 
+  const dataQuitarXp = {
+    name: 'quitar-xp',
+    description: 'Le quita XP a un maje y le ajusta el nivel',
+    options: [
+      {
+        name: 'usuario',
+        type: ApplicationCommandOptionType.User,
+        description: 'El chavo al q le quitaras XP',
+        required: true,
+      },
+      {
+        name: 'cant',
+        type: ApplicationCommandOptionType.Integer,
+        description: 'Cuantos puntos le vas a quitar',
+        required: true,
+      }
+    ]
+  };
+
   try {
     await client.application.commands.create(dataAddXp);
+    await client.application.commands.create(dataQuitarXp);
     console.log('Comandos listos compa > < :v');
   } catch (error) {
     console.error('Error con los comandos:', error);
@@ -192,7 +212,6 @@ client.on('interactionCreate', async (interaction) => {
         userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
       }
 
-      // Solo sumamos a lo que ya tenía sin resetear nada a cero
       userXpData.xp += cantidad;
 
       while (userXpData.xp >= (userXpData.level + 1) * 100) {
@@ -225,7 +244,59 @@ client.on('interactionCreate', async (interaction) => {
       await interaction.editReply('Puchica algo trono feo con la base de datos > < :v');
     }
   }
+
+  if (interaction.commandName === 'quitar-xp') {
+    await interaction.deferReply();
+
+    const targetUser = interaction.options.getUser('usuario');
+    const cantidad = interaction.options.getInteger('cant');
+    const guildId = interaction.guild.id;
+    const userId = targetUser.id;
+
+    try {
+      let userXpData = await UserXP.findOne({ userId, guildId });
+
+      if (!userXpData) {
+        await interaction.editReply('Puchica, ese maje ni siquiera tiene registro de XP todavía > < :v');
+        return;
+      }
+
+      userXpData.xp -= cantidad;
+
+      while (userXpData.xp < 0 && userXpData.level > 1) {
+        userXpData.level -= 1;
+        let xpAnterior = (userXpData.level + 1) * 100;
+        userXpData.xp += xpAnterior;
+      }
+
+      if (userXpData.xp < 0) userXpData.xp = 0;
+
+      await userXpData.save();
+
+      const adminEmbed = new EmbedBuilder()
+        .setColor('#ff4747')
+        .setAuthor({ name: 'XP Quitada por Admin', iconURL: targetUser.displayAvatarURL({ dynamic: true }) })
+        .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 512 }))
+        .setDescription(`<@${userId}> Zeus te ha castigado, se te restaron **-${cantidad} XP**`)
+        .addFields(
+          { name: '🌟 Tu Nivel actual es:', value: `**${userXpData.level}**`, inline: true },
+          { name: '✨ Esta es tu XP:', value: `**${userXpData.xp} / ${(userXpData.level + 1) * 100}**`, inline: true }
+        )
+        .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
+
+      await interaction.editReply({ embeds: [adminEmbed] });
+      
+      const member = interaction.guild.members.cache.get(userId);
+      if(member) {
+        await checkearRoles(member, userXpData.level, interaction.guild);
+      }
+      
+    } catch (error) {
+      console.error('Clavo en quitar-xp:', error);
+      await interaction.editReply('Puchica algo trono feo con la base de datos al quitar XP > < :v');
+    }
+  }
 });
 
-
 client.login(process.env.DISCORD_TOKEN);
+      
