@@ -190,11 +190,9 @@ client.on('interactionCreate', async (interaction) => {
 
       if (!userXpData) {
         userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
-      } else {
-        userXpData.xp = 0;
-        userXpData.level = 1;
       }
 
+      // Solo sumamos a lo que ya tenía sin resetear nada a cero
       userXpData.xp += cantidad;
 
       while (userXpData.xp >= (userXpData.level + 1) * 100) {
@@ -228,5 +226,6 @@ client.on('interactionCreate', async (interaction) => {
     }
   }
 });
+
 
 client.login(process.env.DISCORD_TOKEN);
