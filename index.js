@@ -7,7 +7,6 @@ http.createServer((req, res) => {
 const { Client, GatewayIntentBits, EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const mongoose = require('mongoose');
 const Canvas = require('canvas');
-const path = require('path');
 require('dotenv').config();
 
 const UserXP = require('./UserXP.js');
@@ -55,17 +54,25 @@ client.once('ready', async () => {
   }
 });
 
-// Función para generar la tarjeta de rango con Canvas (con textos claros y borde negro)
+// Función para generar la tarjeta de rango usando una URL directa
 async function generarRankCard(user, xpData) {
   const canvas = Canvas.createCanvas(900, 250);
   const ctx = canvas.getContext('2d');
 
-  // Carga la imagen de tormenta que subiste a GitHub
-  const background = await Canvas.loadImage(path.join(__dirname, 'image_14.jpg'));
-  ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
+  try {
+    // ⚡ CAMBIA ESTE ENLACE por el link directo de tu imagen (debe terminar en .jpg o .png)
+    const urlImagenFondo = 'https://cdn.discordapp.com/attachments/1336768872182976674/1545837322195443922/image_14.jpg?ex=6a9d98b1&is=6a9c4731&hm=9393a1ffdcc0e9532002cca2abc15316ec5a9d33d30dfcbda816ccae5708487a&';
+    
+    const background = await Canvas.loadImage(urlImagenFondo);
+    ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
+  } catch (e) {
+    // Fondo de emergencia por si falla el enlace
+    ctx.fillStyle = '#111111';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
 
-  // Capa oscura para que resalte chido el texto
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+  // Capa semitransparente para que el texto resalte chido
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Avatar circular del usuario
@@ -84,35 +91,28 @@ async function generarRankCard(user, xpData) {
   ctx.drawImage(avatar, avatarX, avatarY, avatarRadius * 2, avatarRadius * 2);
   ctx.restore();
 
-  // Borde brillante al avatar
-  ctx.lineWidth = 5;
+  // Borde del avatar
+  ctx.lineWidth = 4;
   ctx.strokeStyle = '#00ffcc';
   ctx.stroke();
 
-  // Estilo de texto con trazo negro pa ke no se lo trague la tormenta
+  // Textos de la tarjeta
   ctx.textAlign = 'left';
-  ctx.lineWidth = 4;
 
-  // Nombre del usuario
-  ctx.font = 'bold 38px sans-serif';
+  // Nombre
+  ctx.font = 'bold 36px sans-serif';
   ctx.fillStyle = '#ffffff';
-  ctx.strokeStyle = '#000000';
-  ctx.strokeText(user.username, 230, 95);
   ctx.fillText(user.username, 230, 95);
 
-  // Nivel bien visible en dorado
-  ctx.font = 'bold 32px sans-serif';
+  // Nivel
+  ctx.font = 'bold 28px sans-serif';
   ctx.fillStyle = '#FFD700';
-  ctx.strokeStyle = '#000000';
-  ctx.strokeText(`NIVEL: ${xpData.level}`, 230, 150);
-  ctx.fillText(`NIVEL: ${xpData.level}`, 230, 150);
+  ctx.fillText(`NIVEL ${xpData.level}`, 230, 145);
 
-  // Barra o texto de XP
-  ctx.font = '24px sans-serif';
+  // XP
+  ctx.font = '22px sans-serif';
   ctx.fillStyle = '#00ffcc';
-  ctx.strokeStyle = '#000000';
-  ctx.strokeText(`XP: ${xpData.xp} / ${xpData.level * 100}`, 230, 205);
-  ctx.fillText(`XP: ${xpData.xp} / ${xpData.level * 100}`, 230, 205);
+  ctx.fillText(`XP: ${xpData.xp} / ${xpData.level * 100}`, 230, 195);
 
   return canvas.toBuffer();
 }
@@ -145,8 +145,8 @@ client.on('messageCreate', async (message) => {
 
       const levelEmbed = new EmbedBuilder()
         .setColor('#00ffcc')
-        .setTitle('¡SUBIDA DE NIVEL! ⚡')
-        .setDescription(`¡Felicidades <@${userId}>! Has alcanzado el **nivel ${userXpData.level}** rompiendo tus límites > < :v`)
+        .setTitle('# ⚡ ¡SUBIDA DE NIVEL! ⚡')
+        .setDescription(`¡Felicidades <@${userId}>!\nHas alcanzado el nivel **${userXpData.level}** > < :v`)
         .setImage('attachment://rank-card.jpg')
         .setFooter({ text: 'Sistema de XP • Zeus', iconURL: client.user.displayAvatarURL() });
 
@@ -176,7 +176,6 @@ client.on('interactionCreate', async (interaction) => {
 
     userXpData.xp += cantidad;
     
-    // Auto-nivel por si se pasa de la raya con la XP añadida
     while (userXpData.xp >= userXpData.level * 100) {
       userXpData.xp -= userXpData.level * 100;
       userXpData.level += 1;
@@ -190,7 +189,7 @@ client.on('interactionCreate', async (interaction) => {
     const adminEmbed = new EmbedBuilder()
       .setColor('#FFD700')
       .setTitle('⚡ Actualización de XP Administrativa')
-      .setDescription(`Se han sumado **+${cantidad} de XP** a <@${userId}>. Nivel actual: **${userXpData.level}**`)
+      .setDescription(`# ¡Listo <@${userId}>!\nSe sumaron **+${cantidad} XP**. Nivel actual: **${userXpData.level}** > < :v`)
       .setImage('attachment://rank-card.jpg')
       .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
 
@@ -198,5 +197,4 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-client.login(process.env.DISCORD_TOKEN);
-      
+client.login(process.env.DISCDATA_TOKEN || process.env.DISCORD_TOKEN);
