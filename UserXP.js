@@ -8,4 +8,3 @@ const userXpSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model('UserXP', userXpSchema);
-
