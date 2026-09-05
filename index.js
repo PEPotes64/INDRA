@@ -11,13 +11,6 @@ require('dotenv').config();
 
 const UserXP = require('./UserXP.js');
 
-// Modelo de Mongoose integrado directo aquí para guardar el fondo en base64
-const backgroundSchema = new mongoose.Schema({
-  guildId: { type: String, required: true, unique: true },
-  imageBuffer: { type: String, required: true }
-});
-const Background = mongoose.models.Background || mongoose.model('Background', backgroundSchema);
-
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -34,7 +27,7 @@ mongoose.connect(process.env.MONGODB_URI)
 client.once('ready', async () => {
   console.log(`Bot encendido como ${client.user.tag}! Zeus ya está rifando > < :v`);
 
-  // Registro de comandos
+  // Registro del único comando que necesitamos
   const dataAddXp = {
     name: 'añadir-xp',
     description: 'Añade XP a un usuario de forma administrativa',
@@ -54,59 +47,27 @@ client.once('ready', async () => {
     ]
   };
 
-  const dataSetBg = {
-    name: 'setbg',
-    description: 'Sube una imagen para usarla como fondo en la Rank Card',
-    options: [
-      {
-        name: 'imagen',
-        type: ApplicationCommandOptionType.Attachment,
-        description: 'Sube la imagen de fondo (ej: image_14.jpg)',
-        required: true,
-      }
-    ]
-  };
-
   try {
     await client.application.commands.create(dataAddXp);
-    await client.application.commands.create(dataSetBg);
     console.log('Comandos registrados al centavo! > < :v');
   } catch (error) {
     console.error('Error al registrar comandos:', error);
   }
 });
 
-// Función para generar la tarjeta jalando el fondo desde MongoDB
-async function generarRankCard(user, xpData, guildId) {
+// Función para generar la Rank Card totalmente transparente (sin fondo ni colores de relleno)
+async function generarRankCard(user, xpData) {
   const canvas = Canvas.createCanvas(900, 250);
   const ctx = canvas.getContext('2d');
 
-  try {
-    // Buscamos el fondo guardado en Mongo para este servidor
-    const bgConfig = await Background.findOne({ guildId });
-    if (bgConfig && bgConfig.imageBuffer) {
-      const bgImage = await Canvas.loadImage(bgConfig.imageBuffer);
-      ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
-    } else {
-      // Fondo negro de respaldo si no han configurado imagen
-      ctx.fillStyle = '#0b0f19';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
-  } catch (e) {
-    console.error('Error al cargar la imagen de Mongo:', e);
-    ctx.fillStyle = '#0b0f19';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  }
-
-  // Capa oscura para que los textos resalten chido
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Limpiamos todo para que el fondo sea 100% transparente
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const avatarX = 40;
   const avatarY = 50;
   const avatarRadius = 75;
 
-  // Círculo de respaldo del avatar
+  // Círculo de respaldo por si el avatar tarda en cargar
   ctx.save();
   ctx.beginPath();
   ctx.arc(avatarX + avatarRadius, avatarY + avatarRadius, avatarRadius, 0, Math.PI * 2, true);
@@ -153,7 +114,7 @@ async function generarRankCard(user, xpData, guildId) {
   ctx.fillStyle = '#00ffcc';
   ctx.fillText(`XP: ${xpData.xp} / ${xpData.level * 100}`, 230, 195);
 
-  return canvas.toBuffer('image/jpeg', { quality: 0.95 });
+  return canvas.toBuffer('image/png', { quality: 0.95 });
 }
 
 // Sistema de XP por mensajes
@@ -184,8 +145,8 @@ client.on('messageCreate', async (message) => {
     await userXpData.save();
 
     if (subioNivel) {
-      const buffer = await generarRankCard(message.author, userXpData, guildId);
-      const uniqueFileName = `rank-card-${Date.now()}.jpg`;
+      const buffer = await generarRankCard(message.author, userXpData);
+      const uniqueFileName = `rank-card-${Date.now()}.png`;
       const attachment = new AttachmentBuilder(buffer, { name: uniqueFileName });
 
       const levelEmbed = new EmbedBuilder()
@@ -202,42 +163,10 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-// Manejo de comandos (añadir-xp y setbg)
+// Manejo del comando /añadir-xp
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
-  // Comando /setbg para guardar la imagen en MongoDB
-  if (interaction.commandName === 'setbg') {
-    await interaction.deferReply({ ephemeral: true });
-    const attachment = interaction.options.getAttachment('imagen');
-    const guildId = interaction.guild.id;
-
-    if (!attachment.contentType || !attachment.contentType.startsWith('image/')) {
-      return interaction.editReply('¡Puchica, Pepo! Tienes que subir un archivo de imagen válido > < :v');
-    }
-
-    try {
-      // Descargamos la imagen como buffer desde Discord y la convertimos a Base64
-      const response = await fetch(attachment.url);
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const base64Image = `data:${attachment.contentType};base64,${buffer.toString('base64')}`;
-
-      // Guardamos o actualizamos en MongoDB para este servidor
-      await Background.findOneAndUpdate(
-        { guildId },
-        { imageBuffer: base64Image },
-        { upsert: true, new: true }
-      );
-
-      await interaction.editReply('¡Fondo guardado en MongoDB al centavo! Ya puedes usar tus comandos de XP y se verá chido > < :v');
-    } catch (error) {
-      console.error('Error al guardar el fondo:', error);
-      interaction.editReply('Hubo un error al guardar la imagen en la base de datos > < :v');
-    }
-  }
-
-  // Comando /añadir-xp
   if (interaction.commandName === 'añadir-xp') {
     await interaction.deferReply();
 
@@ -261,8 +190,8 @@ client.on('interactionCreate', async (interaction) => {
 
       await userXpData.save();
 
-      const buffer = await generarRankCard(targetUser, userXpData, guildId);
-      const uniqueFileName = `rank-card-${Date.now()}.jpg`;
+      const buffer = await generarRankCard(targetUser, userXpData);
+      const uniqueFileName = `rank-card-${Date.now()}.png`;
       const attachment = new AttachmentBuilder(buffer, { name: uniqueFileName });
 
       const adminEmbed = new EmbedBuilder()
@@ -281,4 +210,3 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
-          
