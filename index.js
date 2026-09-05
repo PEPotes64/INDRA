@@ -18,7 +18,6 @@ const client = new Client({
   ]
 });
 
-// Aki metemos la tabla d roles q m pasaste
 const nivelesRoles = [
   { min: 1000, max: 99999, id: '1545889068963860480' },
   { min: 850, max: 999, id: '1545888858426703932' },
@@ -51,7 +50,6 @@ const nivelesRoles = [
   { min: 1, max: 4, id: '1359363942727815269' }
 ];
 
-// Conectando la base de datos compa
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Base de datos conectada al 100 > < :v'))
   .catch(err => console.error('Puchica fallo la base de datos:', err));
@@ -86,21 +84,18 @@ client.once('ready', async () => {
   }
 });
 
-// Funcion para actualizar los roles d nivel pa no repetir codigo cerote
 async function checkearRoles(member, nivelActual, guild) {
   try {
     const rangoEncontrado = nivelesRoles.find(r => nivelActual >= r.min && nivelActual <= r.max);
-    if (!rangoEncontrado) return; // Si todavia no keda en ni un rango, q pele
+    if (!rangoEncontrado) return;
 
     const idsDeNiveles = nivelesRoles.map(r => r.id);
     const rolesAQuitar = member.roles.cache.filter(r => idsDeNiveles.includes(r.id) && r.id !== rangoEncontrado.id);
     
-    // Si tiene roles d otros niveles, paba fuera
     if (rolesAQuitar.size > 0) {
       await member.roles.remove(rolesAQuitar);
     }
 
-    // Le encajamos el nuebo
     const rolNuevoObj = guild.roles.cache.get(rangoEncontrado.id);
     if (rolNuevoObj && !member.roles.cache.has(rolNuevoObj.id)) {
       await member.roles.add(rolNuevoObj);
@@ -110,38 +105,37 @@ async function checkearRoles(member, nivelActual, guild) {
   }
 }
 
-// Sistema de XP avanzado según el contenido que mande la mara
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
 
   const userId = message.author.id;
   const guildId = message.guild.id;
 
-  let xpGanada = 1; // Por defecto el texto vale 1 XP
+  let xpGanada = 1;
 
   if (message.attachments.size > 0) {
     const attachment = message.attachments.first();
     const tipo = attachment.contentType || '';
 
     if (tipo.startsWith('image/')) {
-      xpGanada = 3; // Imagen: 3 XP
+      xpGanada = 3;
     } else if (tipo.startsWith('video/')) {
-      xpGanada = 4; // Video: 4 XP
+      xpGanada = 4;
     } else if (tipo.startsWith('audio/')) {
-      xpGanada = 2; // Audio: 2 XP
+      xpGanada = 2;
     }
   }
   else if (message.content.includes('giphy.com') || message.content.includes('tenor.com') || message.embeds.some(e => e.type === 'gifv')) {
-    xpGanada = 2; // GIF: 2 XP
+    xpGanada = 2;
   }
   else if (/<a?:\w+:\d+>/.test(message.content)) {
-    xpGanada = 1 + (message.content.match(/<a?:\w+:\d+>/g) || []).length; // Emoji: 1 XP c/u
+    xpGanada = 1 + (message.content.match(/<a?:\w+:\d+>/g) || []).length;
   }
 
   try {
     let userXpData = await UserXP.findOne({ userId, guildId });
     if (!userXpData) {
-      userXpData = new UserXP({ userId, guildId, xp: 0, level: 0 });
+      userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
     }
 
     userXpData.xp += xpGanada;
@@ -164,14 +158,13 @@ client.on('messageCreate', async (message) => {
         .setThumbnail(message.author.displayAvatarURL({ dynamic: true, size: 512 }))
         .setDescription(`<@${userId}> Haz sido ayudado por Zeus, subiste de nivel chatio 🔥`)
         .addFields(
-          { name: '🌟 Tu Nuevo nivel es:', value: \`**\${userXpData.level}**\`, inline: true },
-          { name: '✨ Esta es tu XP:', value: \`**\${userXpData.xp} / \${(userXpData.level + 1) * 100}**\`, inline: true }
+          { name: '🌟 Tu Nuevo nivel es:', value: `**${userXpData.level}**`, inline: true },
+          { name: '✨ Esta es tu XP:', value: `**${userXpData.xp} / ${(userXpData.level + 1) * 100}**`, inline: true }
         )
         .setFooter({ text: 'Sistema de XP • Zeus', iconURL: client.user.displayAvatarURL() });
 
       await message.channel.send({ embeds: [levelEmbed] });
       
-      // AKI LLAMAMOS LA FUNCION PA ACTUALIZAR EL ROL
       if(message.member) {
         await checkearRoles(message.member, userXpData.level, message.guild);
       }
@@ -181,7 +174,6 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-// El comando slash pa los admins con reseteo y textos personalizados
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
@@ -197,10 +189,10 @@ client.on('interactionCreate', async (interaction) => {
       let userXpData = await UserXP.findOne({ userId, guildId });
 
       if (!userXpData) {
-        userXpData = new UserXP({ userId, guildId, xp: 0, level: 0 });
+        userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
       } else {
         userXpData.xp = 0;
-        userXpData.level = 0;
+        userXpData.level = 1;
       }
 
       userXpData.xp += cantidad;
@@ -218,14 +210,13 @@ client.on('interactionCreate', async (interaction) => {
         .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 512 }))
         .setDescription(`<@${userId}> Haz sido ayudado por Zeus, se te sumaron **+${cantidad} XP**`)
         .addFields(
-          { name: '🌟 Tu Nuevo nivel es:', value: \`**\${userXpData.level}**\`, inline: true },
-          { name: '✨ Esta es tu XP:', value: \`**\${userXpData.xp} / \${(userXpData.level + 1) * 100}**\`, inline: true }
+          { name: '🌟 Tu Nuevo nivel es:', value: `**${userXpData.level}**`, inline: true },
+          { name: '✨ Esta es tu XP:', value: `**${userXpData.xp} / ${(userXpData.level + 1) * 100}**`, inline: true }
         )
         .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
 
       await interaction.editReply({ embeds: [adminEmbed] });
       
-      // TAMBIEN AKI LE ACTUALIZAMOS EL ROL X SI EL ADMIN LO CHETO
       const member = interaction.guild.members.cache.get(userId);
       if(member) {
         await checkearRoles(member, userXpData.level, interaction.guild);
@@ -239,4 +230,3 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
-          
