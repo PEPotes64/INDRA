@@ -28,7 +28,7 @@ client.once('ready', async () => {
 
   const dataAddXp = {
     name: 'añadir-xp',
-    description: 'Añade XP a un maje',
+    description: 'Añade XP a un maje y resetea',
     options: [
       {
         name: 'usuario',
@@ -53,43 +53,62 @@ client.once('ready', async () => {
   }
 });
 
-// Kuando ablan y ganan xp
+// Sistema de XP avanzado según el contenido que mande la mara
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
 
   const userId = message.author.id;
   const guildId = message.guild.id;
 
+  let xpGanada = 1; // Por defecto el texto vale 1 XP
+
+  if (message.attachments.size > 0) {
+    const attachment = message.attachments.first();
+    const tipo = attachment.contentType || '';
+
+    if (tipo.startsWith('image/')) {
+      xpGanada = 3; // Imagen: 3 XP
+    } else if (tipo.startsWith('video/')) {
+      xpGanada = 4; // Video: 4 XP
+    } else if (tipo.startsWith('audio/')) {
+      xpGanada = 2; // Audio: 2 XP
+    }
+  } 
+  else if (message.content.includes('giphy.com') || message.content.includes('tenor.com') || message.embeds.some(e => e.type === 'gifv')) {
+    xpGanada = 2; // GIF: 2 XP
+  } 
+  else if (/<a?:\w+:\d+>/.test(message.content)) {
+    xpGanada = 1 + (message.content.match(/<a?:\w+:\d+>/g) || []).length; // Emoji: 1 XP c/u
+  }
+
   try {
     let userXpData = await UserXP.findOne({ userId, guildId });
     if (!userXpData) {
-      userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
+      userXpData = new UserXP({ userId, guildId, xp: 0, level: 0 });
     }
 
-    const xpGanada = Math.floor(Math.random() * 11) + 15;
     userXpData.xp += xpGanada;
-    let xpNecesaria = userXpData.level * 100;
+    let xpNecesaria = (userXpData.level + 1) * 100;
 
     let subioNivel = false;
     while (userXpData.xp >= xpNecesaria) {
       userXpData.xp -= xpNecesaria;
       userXpData.level += 1;
-      xpNecesaria = userXpData.level * 100;
+      xpNecesaria = (userXpData.level + 1) * 100;
       subioNivel = true;
     }
 
     await userXpData.save();
 
     if (subioNivel) {
-      // Usamos un embed pro en ves de imagen chafa
       const levelEmbed = new EmbedBuilder()
         .setColor('#00ffcc')
         .setAuthor({ name: `¡Subida de Nivel!`, iconURL: message.author.displayAvatarURL({ dynamic: true }) })
         .setThumbnail(message.author.displayAvatarURL({ dynamic: true, size: 512 }))
-        .setDescription(`Wena <@${userId}>! Anda puro fuego cerote 🔥`)
+        .setDescription(`<@${userId}> Haz sido ayudado por Zeus, subiste de nivel chatio 🔥`)
         .addFields(
-          { name: '🌟 Nivel Alcanzado', value: `**${userXpData.level}**`, inline: true },
-          { name: '✨ XP Actual', value: `**${userXpData.xp} / ${userXpData.level * 100}**`, inline: true }
+          { name: '⛈️Tu Nuevo nivel es:', value: `**${userXpData.level}**`, inline: true },
+          { name: '⚡Esta es tu XP:', value: `**${userXpData.xp} / ${(userXpData.level + 1) * 100}**`, inline: true }
         )
         .setFooter({ text: 'Sistema de XP • Zeus', iconURL: client.user.displayAvatarURL() });
 
@@ -100,7 +119,7 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-// El comando slash pa los admines
+// El comando slash pa los admines con reseteo y textos personalizados
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
@@ -114,28 +133,31 @@ client.on('interactionCreate', async (interaction) => {
 
     try {
       let userXpData = await UserXP.findOne({ userId, guildId });
+      
       if (!userXpData) {
-        userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
+        userXpData = new UserXP({ userId, guildId, xp: 0, level: 0 });
+      } else {
+        userXpData.xp = 0;
+        userXpData.level = 0;
       }
 
       userXpData.xp += cantidad;
 
-      while (userXpData.xp >= userXpData.level * 100) {
-        userXpData.xp -= userXpData.level * 100;
+      while (userXpData.xp >= (userXpData.level + 1) * 100) {
+        userXpData.xp -= (userXpData.level + 1) * 100;
         userXpData.level += 1;
       }
 
       await userXpData.save();
 
-      // Embed perron de confirmacion en ves de imagen
       const adminEmbed = new EmbedBuilder()
         .setColor('#FFD700')
         .setAuthor({ name: `XP Puesta por Admin`, iconURL: targetUser.displayAvatarURL({ dynamic: true }) })
         .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 512 }))
-        .setDescription(`Ya kedo maje <@${userId}>! Se sumaron **+${cantidad} XP**`)
+        .setDescription(`<@${userId}> Haz sido ayudado por Zeus, se te sumaron **+${cantidad} XP**`)
         .addFields(
-          { name: '📈 Nuevo Nivel', value: `**${userXpData.level}**`, inline: true },
-          { name: '⚡ Progreso', value: `**${userXpData.xp} / ${userXpData.level * 100}**`, inline: true }
+          { name: '⛈️Tu Nuevo nivel es:', value: `**${userXpData.level}**`, inline: true },
+          { name: '⚡Esta es tu XP:', value: `**${userXpData.xp} / ${(userXpData.level + 1) * 100}**`, inline: true }
         )
         .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
 
@@ -148,4 +170,4 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
-    
+
