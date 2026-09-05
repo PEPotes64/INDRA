@@ -59,12 +59,13 @@ async function generarRankCard(user, xpData) {
   const canvas = Canvas.createCanvas(900, 250);
   const ctx = canvas.getContext('2d');
 
-  // 1. Cargamos y dibujamos la imagen de fondo que ya tienes en el repo
+  // 1. Cargamos y dibujamos la imagen de fondo directamente desde el enlace RAW de GitHub
   try {
-    const bgImage = await Canvas.loadImage('./image_14.jpg');
+    const imageUrl = 'https://raw.githubusercontent.com/PEPotes64/INDRA/main/image_14.jpg';
+    const bgImage = await Canvas.loadImage(imageUrl);
     ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
   } catch (e) {
-    console.error('No se pudo cargar la imagen de fondo, usando respaldo sólido:', e);
+    console.error('No se pudo cargar la imagen de fondo por red:', e);
     ctx.fillStyle = '#0b0f19';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
