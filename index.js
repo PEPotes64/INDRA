@@ -1,15 +1,22 @@
 const http = require('http');
 http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Zeus vive y está al centavo! > < :v\n');
+  res.end('Zeus vive y está al centavo! > < :v');
 }).listen(process.env.PORT || 3000);
 
-const { Client, GatewayIntentBits, EmbedBuilder, AttachmentBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, AttachmentBuilder, ApplicationCommandOptionType } = require('discord.js');
 const mongoose = require('mongoose');
 const Canvas = require('canvas');
 require('dotenv').config();
 
 const UserXP = require('./UserXP.js');
+
+// Modelo de Mongoose integrado directo aquí para guardar el fondo en base64
+const backgroundSchema = new mongoose.Schema({
+  guildId: { type: String, required: true, unique: true },
+  imageBuffer: { type: String, required: true }
+});
+const Background = mongoose.models.Background || mongoose.model('Background', backgroundSchema);
 
 const client = new Client({
   intents: [
@@ -27,56 +34,73 @@ mongoose.connect(process.env.MONGODB_URI)
 client.once('ready', async () => {
   console.log(`Bot encendido como ${client.user.tag}! Zeus ya está rifando > < :v`);
 
-  const data = {
+  // Registro de comandos
+  const dataAddXp = {
     name: 'añadir-xp',
     description: 'Añade XP a un usuario de forma administrativa',
     options: [
       {
         name: 'usuario',
-        type: 6,
+        type: ApplicationCommandOptionType.User,
         description: 'El usuario al que le vas a dar XP',
-        required: true
+        required: true,
       },
       {
         name: 'cant',
-        type: 4,
+        type: ApplicationCommandOptionType.Integer,
         description: 'Cantidad de XP a sumar',
-        required: true
+        required: true,
+      }
+    ]
+  };
+
+  const dataSetBg = {
+    name: 'setbg',
+    description: 'Sube una imagen para usarla como fondo en la Rank Card',
+    options: [
+      {
+        name: 'imagen',
+        type: ApplicationCommandOptionType.Attachment,
+        description: 'Sube la imagen de fondo (ej: image_14.jpg)',
+        required: true,
       }
     ]
   };
 
   try {
-    await client.application.commands.create(data);
-    console.log('Comando /añadir-xp registrado al centavo! :v');
+    await client.application.commands.create(dataAddXp);
+    await client.application.commands.create(dataSetBg);
+    console.log('Comandos registrados al centavo! > < :v');
   } catch (error) {
-    console.error('Error al registrar comando:', error);
+    console.error('Error al registrar comandos:', error);
   }
 });
 
-async function generarRankCard(user, xpData) {
+// Función para generar la tarjeta jalando el fondo desde MongoDB
+async function generarRankCard(user, xpData, guildId) {
   const canvas = Canvas.createCanvas(900, 250);
   const ctx = canvas.getContext('2d');
 
-  // Fondo sólido de respaldo por seguridad
-  ctx.fillStyle = '#0b0f19';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  try {
+    // Buscamos el fondo guardado en Mongo para este servidor
+    const bgConfig = await Background.findOne({ guildId });
+    if (bgConfig && bgConfig.imageBuffer) {
+      const bgImage = await Canvas.loadImage(bgConfig.imageBuffer);
+      ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+    } else {
+      // Fondo negro de respaldo si no han configurado imagen
+      ctx.fillStyle = '#0b0f19';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+  } catch (e) {
+    console.error('Error al cargar la imagen de Mongo:', e);
+    ctx.fillStyle = '#0b0f19';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
 
-  // Intentamos pintar un degradado eléctrico perrón para asegurar estética total
-  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, '#0b0f19');
-  gradient.addColorStop(0.5, '#162238');
-  gradient.addColorStop(1, '#05070b');
-  ctx.fillStyle = gradient;
+  // Capa oscura para que los textos resalten chido
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Rayos sutiles de fondo
-  ctx.strokeStyle = 'rgba(0, 255, 204, 0.25)';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(120, 0); ctx.lineTo(180, 250);
-  ctx.moveTo(720, 0); ctx.lineTo(660, 250);
-  ctx.stroke();
 
   const avatarX = 40;
   const avatarY = 50;
@@ -132,9 +156,9 @@ async function generarRankCard(user, xpData) {
   return canvas.toBuffer('image/jpeg', { quality: 0.95 });
 }
 
-// Sistema de XP por mensajes y subida de nivel
+// Sistema de XP por mensajes
 client.on('messageCreate', async (message) => {
-  if (message.author.bot || !message.guild) return;
+  if (message.author.bot) return;
 
   const userId = message.author.id;
   const guildId = message.guild.id;
@@ -147,36 +171,73 @@ client.on('messageCreate', async (message) => {
 
     const xpGanada = Math.floor(Math.random() * 11) + 15;
     userXpData.xp += xpGanada;
-    const xpNecesaria = userXpData.level * 100;
+    let xpNecesaria = userXpData.level * 100;
 
-    if (userXpData.xp >= xpNecesaria) {
-      userXpData.level += 1;
+    let subioNivel = false;
+    while (userXpData.xp >= xpNecesaria) {
       userXpData.xp -= xpNecesaria;
-      await userXpData.save();
+      userXpData.level += 1;
+      xpNecesaria = userXpData.level * 100;
+      subioNivel = true;
+    }
 
-      const buffer = await generarRankCard(message.author, userXpData);
-      const attachment = new AttachmentBuilder(buffer, { name: 'rank-card.jpg' });
+    await userXpData.save();
+
+    if (subioNivel) {
+      const buffer = await generarRankCard(message.author, userXpData, guildId);
+      const uniqueFileName = `rank-card-${Date.now()}.jpg`;
+      const attachment = new AttachmentBuilder(buffer, { name: uniqueFileName });
 
       const levelEmbed = new EmbedBuilder()
         .setColor('#00ffcc')
         .setTitle('⚡ SUBIDA DE NIVEL ⚡')
         .setDescription(`# ¡Felicidades <@${userId}>!\nHas alcanzado el nivel **${userXpData.level}** > < :v`)
-        .setImage('attachment://rank-card.jpg')
-        .setFooter({ text: 'Sistema de XP • Zeus', iconURL: client.user.displayAvatarURL() });
+        .setImage(`attachment://${uniqueFileName}`)
+        .setFooter({ text: 'Sistema de xp • Zeus', iconURL: client.user.displayAvatarURL() });
 
       await message.channel.send({ embeds: [levelEmbed], files: [attachment] });
     }
-
-    await userXpData.save();
   } catch (error) {
     console.error('Error al procesar la XP:', error);
   }
 });
 
-// Manejo del comando /añadir-xp
+// Manejo de comandos (añadir-xp y setbg)
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
+  // Comando /setbg para guardar la imagen en MongoDB
+  if (interaction.commandName === 'setbg') {
+    await interaction.deferReply({ ephemeral: true });
+    const attachment = interaction.options.getAttachment('imagen');
+    const guildId = interaction.guild.id;
+
+    if (!attachment.contentType || !attachment.contentType.startsWith('image/')) {
+      return interaction.editReply('¡Puchica, Pepo! Tienes que subir un archivo de imagen válido > < :v');
+    }
+
+    try {
+      // Descargamos la imagen como buffer desde Discord y la convertimos a Base64
+      const response = await fetch(attachment.url);
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const base64Image = `data:${attachment.contentType};base64,${buffer.toString('base64')}`;
+
+      // Guardamos o actualizamos en MongoDB para este servidor
+      await Background.findOneAndUpdate(
+        { guildId },
+        { imageBuffer: base64Image },
+        { upsert: true, new: true }
+      );
+
+      await interaction.editReply('¡Fondo guardado en MongoDB al centavo! Ya puedes usar tus comandos de XP y se verá chido > < :v');
+    } catch (error) {
+      console.error('Error al guardar el fondo:', error);
+      interaction.editReply('Hubo un error al guardar la imagen en la base de datos > < :v');
+    }
+  }
+
+  // Comando /añadir-xp
   if (interaction.commandName === 'añadir-xp') {
     await interaction.deferReply();
 
@@ -185,32 +246,39 @@ client.on('interactionCreate', async (interaction) => {
     const guildId = interaction.guild.id;
     const userId = targetUser.id;
 
-    let userXpData = await UserXP.findOne({ userId, guildId });
-    if (!userXpData) {
-      userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
+    try {
+      let userXpData = await UserXP.findOne({ userId, guildId });
+      if (!userXpData) {
+        userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
+      }
+
+      userXpData.xp += cantidad;
+
+      while (userXpData.xp >= userXpData.level * 100) {
+        userXpData.xp -= userXpData.level * 100;
+        userXpData.level += 1;
+      }
+
+      await userXpData.save();
+
+      const buffer = await generarRankCard(targetUser, userXpData, guildId);
+      const uniqueFileName = `rank-card-${Date.now()}.jpg`;
+      const attachment = new AttachmentBuilder(buffer, { name: uniqueFileName });
+
+      const adminEmbed = new EmbedBuilder()
+        .setColor('#FFD700')
+        .setTitle('⚡ Actualización de XP Administrativa')
+        .setDescription(`# ¡Listo <@${userId}>!\nSe sumaron **+${cantidad} XP**. Nivel actual: **${userXpData.level}** > < :v`)
+        .setImage(`attachment://${uniqueFileName}`)
+        .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
+
+      await interaction.editReply({ embeds: [adminEmbed], files: [attachment] });
+    } catch (error) {
+      console.error('Error en /añadir-xp:', error);
+      await interaction.editReply('¡Puchica, algo salió mal al procesar la XP > < :v!');
     }
-
-    userXpData.xp += cantidad;
-    
-    while (userXpData.xp >= userXpData.level * 100) {
-      userXpData.xp -= userXpData.level * 100;
-      userXpData.level += 1;
-    }
-
-    await userXpData.save();
-
-    const buffer = await generarRankCard(targetUser, userXpData);
-    const attachment = new AttachmentBuilder(buffer, { name: 'rank-card.jpg' });
-
-    const adminEmbed = new EmbedBuilder()
-      .setColor('#FFD700')
-      .setTitle('⚡ Actualización de XP Administrativa')
-      .setDescription(`# ¡Listo <@${userId}>!\nSe sumaron **+${cantidad} XP**. Nivel actual: **${userXpData.level}** > < :v`)
-      .setImage('attachment://rank-card.jpg')
-      .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
-
-    await interaction.editReply({ embeds: [adminEmbed], files: [attachment] });
   }
 });
 
 client.login(process.env.DISCORD_TOKEN);
+          
