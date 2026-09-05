@@ -21,7 +21,7 @@ const client = new Client({
 
 // Conexión a MongoDB
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('Base de datos de INDRA conectada al centavo! > < :v'))
+  .then(() => console.log('Base de datos conectada al centavo! > < :v'))
   .catch(err => console.error('Error al conectar a MongoDB:', err));
 
 client.once('ready', async () => {
@@ -54,7 +54,7 @@ client.once('ready', async () => {
   }
 });
 
-// Función para generar la tarjeta de rango con diseño de tormenta por código (100% infalible en Render)
+// Función para generar la tarjeta de rango en formato JPEG (sin errores de fondo negro en la app de Discord)
 async function generarRankCard(user, xpData) {
   const canvas = Canvas.createCanvas(900, 250);
   const ctx = canvas.getContext('2d');
@@ -68,21 +68,30 @@ async function generarRankCard(user, xpData) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Destellos sutiles de rayos en el fondo
-  ctx.strokeStyle = 'rgba(0, 255, 204, 0.15)';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(0, 255, 204, 0.25)';
+  ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(100, 0); ctx.lineTo(150, 250);
-  ctx.moveTo(700, 0); ctx.lineTo(650, 250);
+  ctx.moveTo(120, 0); ctx.lineTo(180, 250);
+  ctx.moveTo(720, 0); ctx.lineTo(660, 250);
   ctx.stroke();
+
+  const avatarX = 40;
+  const avatarY = 50;
+  const avatarRadius = 75;
+
+  // Círculo de respaldo por si el avatar tarda en cargar
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(avatarX + avatarRadius, avatarY + avatarRadius, avatarRadius, 0, Math.PI * 2, true);
+  ctx.closePath();
+  ctx.fillStyle = '#1f2937';
+  ctx.fill();
+  ctx.restore();
 
   // Avatar circular del usuario
   try {
     const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
     const avatar = await Canvas.loadImage(avatarUrl);
-
-    const avatarX = 40;
-    const avatarY = 50;
-    const avatarRadius = 75;
 
     ctx.save();
     ctx.beginPath();
@@ -91,34 +100,34 @@ async function generarRankCard(user, xpData) {
     ctx.clip();
     ctx.drawImage(avatar, avatarX, avatarY, avatarRadius * 2, avatarRadius * 2);
     ctx.restore();
-
-    // Borde brillante del avatar
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = '#00ffcc';
-    ctx.stroke();
   } catch (e) {
-    console.error('Error al cargar avatar en canvas:', e);
+    console.error('Error al cargar avatar:', e);
   }
 
-  // Textos de la tarjeta limpios y nítidos
+  // Borde brillante del avatar
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#00ffcc';
+  ctx.beginPath();
+  ctx.arc(avatarX + avatarRadius, avatarY + avatarRadius, avatarRadius, 0, Math.PI * 2, true);
+  ctx.stroke();
+
+  // Textos limpios y nítidos
   ctx.textAlign = 'left';
 
-  // Nombre
   ctx.font = 'bold 36px sans-serif';
   ctx.fillStyle = '#ffffff';
   ctx.fillText(user.username, 230, 95);
 
-  // Nivel en dorado
   ctx.font = 'bold 28px sans-serif';
   ctx.fillStyle = '#FFD700';
   ctx.fillText(`NIVEL ${xpData.level}`, 230, 145);
 
-  // Barra de XP
   ctx.font = '22px sans-serif';
   ctx.fillStyle = '#00ffcc';
   ctx.fillText(`XP: ${xpData.xp} / ${xpData.level * 100}`, 230, 195);
 
-  return canvas.toBuffer();
+  // Retornamos en JPEG para que preserve el degradado y Discord lo pinte bien
+  return canvas.toBuffer('image/jpeg', { quality: 0.95 });
 }
 
 // Sistema de XP por mensajes y subida de nivel
@@ -146,11 +155,10 @@ client.on('messageCreate', async (message) => {
       const buffer = await generarRankCard(message.author, userXpData);
       const attachment = new AttachmentBuilder(buffer, { name: 'rank-card.jpg' });
 
-      // El '#' al puro inicio de la descripción hace que Discord ponga el texto gigante
       const levelEmbed = new EmbedBuilder()
         .setColor('#00ffcc')
         .setTitle('⚡ SUBIDA DE NIVEL ⚡')
-        .setDescription(`# ¡Felicidades <@${userId}>!\nHas alcanzado el nivel **${userXpData.level}** > < :v`)
+        .setDescription(`# ¡Felicidades <@${userId}>!\nHas alcanzado el nivel **${userXpData.level}**`)
         .setImage('attachment://rank-card.jpg')
         .setFooter({ text: 'Sistema de XP • Zeus', iconURL: client.user.displayAvatarURL() });
 
@@ -163,7 +171,7 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-// Manejo del comando /añadir-xp con deferReply para evitar el error 10062
+// Manejo del comando /añadir-xp con deferReply
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
@@ -195,7 +203,7 @@ client.on('interactionCreate', async (interaction) => {
     const adminEmbed = new EmbedBuilder()
       .setColor('#FFD700')
       .setTitle('⚡ Actualización de XP Administrativa')
-      .setDescription(`# ¡Listo <@${userId}>!\nSe sumaron **+${cantidad} XP**. Nivel actual: **${userXpData.level}** > < :v`)
+      .setDescription(`# ¡Listo <@${userId}>!\nSe sumaron **+${cantidad} XP**. Nivel actual: **${userXpData.level}**`)
       .setImage('attachment://rank-card.jpg')
       .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
 
@@ -204,4 +212,4 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
-      
+
