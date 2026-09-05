@@ -95,9 +95,23 @@ client.once('ready', async () => {
     ]
   };
 
+  const dataVerXp = {
+    name: 'xp',
+    description: 'Muestra tu nivel y XP actual o la de otro usuario',
+    options: [
+      {
+        name: 'usuario',
+        type: ApplicationCommandOptionType.User,
+        description: 'El chavo del que quieres ver la XP (opcional)',
+        required: false,
+      }
+    ]
+  };
+
   try {
     await client.application.commands.create(dataAddXp);
     await client.application.commands.create(dataQuitarXp);
+    await client.application.commands.create(dataVerXp);
     console.log('Comandos listos compa > < :v');
   } catch (error) {
     console.error('Error con los comandos:', error);
@@ -294,6 +308,42 @@ client.on('interactionCreate', async (interaction) => {
     } catch (error) {
       console.error('Clavo en quitar-xp:', error);
       await interaction.editReply('Puchica algo trono feo con la base de datos al quitar XP > < :v');
+    }
+  }
+
+  if (interaction.commandName === 'xp') {
+    await interaction.deferReply();
+
+    // Si especificó un usuario en el parámetro usa ese, si no usa al autor del comando
+    const targetUser = interaction.options.getUser('usuario') || interaction.user;
+    const guildId = interaction.guild.id;
+    const userId = targetUser.id;
+
+    try {
+      let userXpData = await UserXP.findOne({ userId, guildId });
+
+      if (!userXpData) {
+        userXpData = { xp: 0, level: 1 };
+      }
+
+      const xpNecesaria = (userXpData.level + 1) * 100;
+
+      const xpEmbed = new EmbedBuilder()
+        .setColor('#3b82f6')
+        .setAuthor({ name: `Nivel y XP de ${targetUser.username}`, iconURL: targetUser.displayAvatarURL({ dynamic: true }) })
+        .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 512 }))
+        .setDescription(`Consulta de experiencia en el servidor 🔥`)
+        .addFields(
+          { name: '🌟 Nivel actual:', value: `**${userXpData.level}**`, inline: true },
+          { name: '✨ Puntos de XP:', value: `**${userXpData.xp} / ${xpNecesaria}**`, inline: true }
+        )
+        .setFooter({ text: 'Consulta de XP • Zeus', iconURL: client.user.displayAvatarURL() });
+
+      await interaction.editReply({ embeds: [xpEmbed] });
+
+    } catch (error) {
+      console.error('Clavo consultando la XP:', error);
+      await interaction.editReply('Puchica algo trono feo al intentar ver la XP > < :v');
     }
   }
 });
