@@ -18,7 +18,40 @@ const client = new Client({
   ]
 });
 
-// Koneztando la base de datos compa
+// Aki metemos la tabla d roles q m pasaste
+const nivelesRoles = [
+  { min: 1000, max: 99999, id: '1545889068963860480' },
+  { min: 850, max: 999, id: '1545888858426703932' },
+  { min: 800, max: 849, id: '1545888736145838201' },
+  { min: 750, max: 799, id: '1545888446151663636' },
+  { min: 700, max: 749, id: '1545888262109790348' },
+  { min: 650, max: 699, id: '1545887696977657916' },
+  { min: 600, max: 649, id: '1545886582706544770' },
+  { min: 550, max: 599, id: '1545886425717805086' },
+  { min: 500, max: 549, id: '1545886299985158194' },
+  { min: 450, max: 499, id: '1545886123765669938' },
+  { min: 400, max: 449, id: '1545885802179985539' },
+  { min: 350, max: 399, id: '1545885424424059043' },
+  { min: 300, max: 349, id: '1545885295554207884' },
+  { min: 250, max: 299, id: '1545884764438011986' },
+  { min: 200, max: 249, id: '1545884525395976263' },
+  { min: 150, max: 199, id: '1545884262132228217' },
+  { min: 125, max: 149, id: '1545883901098991666' },
+  { min: 100, max: 124, id: '1545881490582147112' },
+  { min: 80, max: 99, id: '1545881103158747196' },
+  { min: 70, max: 79, id: '1359367583001870378' },
+  { min: 60, max: 69, id: '1359366992628289566' },
+  { min: 50, max: 59, id: '1359366824801865830' },
+  { min: 40, max: 49, id: '1359366460626964510' },
+  { min: 30, max: 39, id: '1359366104060788766' },
+  { min: 20, max: 29, id: '1359365813416493106' },
+  { min: 15, max: 19, id: '1359365597066166383' },
+  { min: 10, max: 14, id: '1359365393084448829' },
+  { min: 5, max: 9, id: '1359364859333967882' },
+  { min: 1, max: 4, id: '1359363942727815269' }
+];
+
+// Conectando la base de datos compa
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Base de datos conectada al 100 > < :v'))
   .catch(err => console.error('Puchica fallo la base de datos:', err));
@@ -39,7 +72,7 @@ client.once('ready', async () => {
       {
         name: 'cant',
         type: ApplicationCommandOptionType.Integer,
-        description: 'Kuantos puntos le vas a dar',
+        description: 'Cuantos puntos le vas a dar',
         required: true,
       }
     ]
@@ -52,6 +85,30 @@ client.once('ready', async () => {
     console.error('Error con los comandos:', error);
   }
 });
+
+// Funcion para actualizar los roles d nivel pa no repetir codigo cerote
+async function checkearRoles(member, nivelActual, guild) {
+  try {
+    const rangoEncontrado = nivelesRoles.find(r => nivelActual >= r.min && nivelActual <= r.max);
+    if (!rangoEncontrado) return; // Si todavia no keda en ni un rango, q pele
+
+    const idsDeNiveles = nivelesRoles.map(r => r.id);
+    const rolesAQuitar = member.roles.cache.filter(r => idsDeNiveles.includes(r.id) && r.id !== rangoEncontrado.id);
+    
+    // Si tiene roles d otros niveles, paba fuera
+    if (rolesAQuitar.size > 0) {
+      await member.roles.remove(rolesAQuitar);
+    }
+
+    // Le encajamos el nuebo
+    const rolNuevoObj = guild.roles.cache.get(rangoEncontrado.id);
+    if (rolNuevoObj && !member.roles.cache.has(rolNuevoObj.id)) {
+      await member.roles.add(rolNuevoObj);
+    }
+  } catch (err) {
+    console.error("Clavo intentando actualizar el rol del maje:", err);
+  }
+}
 
 // Sistema de XP avanzado según el contenido que mande la mara
 client.on('messageCreate', async (message) => {
@@ -73,10 +130,10 @@ client.on('messageCreate', async (message) => {
     } else if (tipo.startsWith('audio/')) {
       xpGanada = 2; // Audio: 2 XP
     }
-  } 
+  }
   else if (message.content.includes('giphy.com') || message.content.includes('tenor.com') || message.embeds.some(e => e.type === 'gifv')) {
     xpGanada = 2; // GIF: 2 XP
-  } 
+  }
   else if (/<a?:\w+:\d+>/.test(message.content)) {
     xpGanada = 1 + (message.content.match(/<a?:\w+:\d+>/g) || []).length; // Emoji: 1 XP c/u
   }
@@ -102,24 +159,29 @@ client.on('messageCreate', async (message) => {
 
     if (subioNivel) {
       const levelEmbed = new EmbedBuilder()
-        .setColor('#00ffcc')
-        .setAuthor({ name: `¡Subida de Nivel!`, iconURL: message.author.displayAvatarURL({ dynamic: true }) })
+        .setColor('#00ffea')
+        .setAuthor({ name: 'Subida de Nivel!', iconURL: message.author.displayAvatarURL({ dynamic: true }) })
         .setThumbnail(message.author.displayAvatarURL({ dynamic: true, size: 512 }))
         .setDescription(`<@${userId}> Haz sido ayudado por Zeus, subiste de nivel chatio 🔥`)
         .addFields(
-          { name: '⛈️Tu Nuevo nivel es:', value: `**${userXpData.level}**`, inline: true },
-          { name: '⚡Esta es tu XP:', value: `**${userXpData.xp} / ${(userXpData.level + 1) * 100}**`, inline: true }
+          { name: '🌟 Tu Nuevo nivel es:', value: \`**\${userXpData.level}**\`, inline: true },
+          { name: '✨ Esta es tu XP:', value: \`**\${userXpData.xp} / \${(userXpData.level + 1) * 100}**\`, inline: true }
         )
         .setFooter({ text: 'Sistema de XP • Zeus', iconURL: client.user.displayAvatarURL() });
 
       await message.channel.send({ embeds: [levelEmbed] });
+      
+      // AKI LLAMAMOS LA FUNCION PA ACTUALIZAR EL ROL
+      if(message.member) {
+        await checkearRoles(message.member, userXpData.level, message.guild);
+      }
     }
   } catch (error) {
     console.error('Clavo con la XP:', error);
   }
 });
 
-// El comando slash pa los admines con reseteo y textos personalizados
+// El comando slash pa los admins con reseteo y textos personalizados
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
@@ -133,7 +195,7 @@ client.on('interactionCreate', async (interaction) => {
 
     try {
       let userXpData = await UserXP.findOne({ userId, guildId });
-      
+
       if (!userXpData) {
         userXpData = new UserXP({ userId, guildId, xp: 0, level: 0 });
       } else {
@@ -151,23 +213,30 @@ client.on('interactionCreate', async (interaction) => {
       await userXpData.save();
 
       const adminEmbed = new EmbedBuilder()
-        .setColor('#FFD700')
-        .setAuthor({ name: `XP Puesta por Admin`, iconURL: targetUser.displayAvatarURL({ dynamic: true }) })
+        .setColor('#ffd700')
+        .setAuthor({ name: 'XP Puesta por Admin', iconURL: targetUser.displayAvatarURL({ dynamic: true }) })
         .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 512 }))
         .setDescription(`<@${userId}> Haz sido ayudado por Zeus, se te sumaron **+${cantidad} XP**`)
         .addFields(
-          { name: '⛈️Tu Nuevo nivel es:', value: `**${userXpData.level}**`, inline: true },
-          { name: '⚡Esta es tu XP:', value: `**${userXpData.xp} / ${(userXpData.level + 1) * 100}**`, inline: true }
+          { name: '🌟 Tu Nuevo nivel es:', value: \`**\${userXpData.level}**\`, inline: true },
+          { name: '✨ Esta es tu XP:', value: \`**\${userXpData.xp} / \${(userXpData.level + 1) * 100}**\`, inline: true }
         )
         .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
 
       await interaction.editReply({ embeds: [adminEmbed] });
+      
+      // TAMBIEN AKI LE ACTUALIZAMOS EL ROL X SI EL ADMIN LO CHETO
+      const member = interaction.guild.members.cache.get(userId);
+      if(member) {
+        await checkearRoles(member, userXpData.level, interaction.guild);
+      }
+      
     } catch (error) {
-      console.error('Clavo en /añadir-xp:', error);
+      console.error('Clavo en añadir-xp:', error);
       await interaction.editReply('Puchica algo trono feo con la base de datos > < :v');
     }
   }
 });
 
 client.login(process.env.DISCORD_TOKEN);
-
+          
