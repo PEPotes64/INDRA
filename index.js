@@ -54,24 +54,23 @@ client.once('ready', async () => {
   }
 });
 
-// Función para generar la tarjeta de rango usando una URL directa
+// Función para generar la tarjeta de rango con fondo estable y diseño chido
 async function generarRankCard(user, xpData) {
   const canvas = Canvas.createCanvas(900, 250);
   const ctx = canvas.getContext('2d');
 
   try {
-    // ⚡ CAMBIA ESTE ENLACE por el link directo de tu imagen (debe terminar en .jpg o .png)
-    const urlImagenFondo = 'https://cdn.discordapp.com/attachments/1336768872182976674/1545837322195443922/image_14.jpg?ex=6a9d98b1&is=6a9c4731&hm=9393a1ffdcc0e9532002cca2abc15316ec5a9d33d30dfcbda816ccae5708487a&';
-    
+    // URL pública y estable compatible con Canvas
+    const urlImagenFondo = 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=900&auto=format&fit=crop';
     const background = await Canvas.loadImage(urlImagenFondo);
     ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
   } catch (e) {
-    // Fondo de emergencia por si falla el enlace
-    ctx.fillStyle = '#111111';
+    // Fondo de emergencia por si falla la red
+    ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
-  // Capa semitransparente para que el texto resalte chido
+  // Capa oscura para contraste
   ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -146,7 +145,7 @@ client.on('messageCreate', async (message) => {
       const levelEmbed = new EmbedBuilder()
         .setColor('#00ffcc')
         .setTitle('# ⚡ ¡SUBIDA DE NIVEL! ⚡')
-        .setDescription(`¡Felicidades <@${userId}>!\nHas alcanzado el nivel **${userXpData.level}** > < :v`)
+        .setDescription(`¡Felicidades <@${userId}>!\nHas alcanzado el nivel **${userXpData.level}**`)
         .setImage('attachment://rank-card.jpg')
         .setFooter({ text: 'Sistema de XP • Zeus', iconURL: client.user.displayAvatarURL() });
 
@@ -188,8 +187,8 @@ client.on('interactionCreate', async (interaction) => {
 
     const adminEmbed = new EmbedBuilder()
       .setColor('#FFD700')
-      .setTitle('⚡ Actualización de XP Administrativa')
-      .setDescription(`# ¡Listo <@${userId}>!\nSe sumaron **+${cantidad} XP**. Nivel actual: **${userXpData.level}** > < :v`)
+      .setTitle('# ⚡ Actualización de XP Administrativa')
+      .setDescription(`¡Listo <@${userId}>!\nSe sumaron **+${cantidad} XP**. Nivel actual: **${userXpData.level}**`)
       .setImage('attachment://rank-card.jpg')
       .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
 
@@ -197,4 +196,5 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-client.login(process.env.DISCDATA_TOKEN || process.env.DISCORD_TOKEN);
+client.login(process.env.DISCORD_TOKEN);
+
