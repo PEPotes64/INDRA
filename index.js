@@ -54,41 +54,23 @@ client.once('ready', async () => {
   }
 });
 
-// Función para generar la tarjeta de rango en formato JPEG (sin errores de fondo negro en la app de Discord)
 async function generarRankCard(user, xpData) {
   const canvas = Canvas.createCanvas(900, 250);
   const ctx = canvas.getContext('2d');
 
-  // Fondo con degradado eléctrico de tormenta
-  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, '#0b0f19');
-  gradient.addColorStop(0.5, '#162238');
-  gradient.addColorStop(1, '#05070b');
-  ctx.fillStyle = gradient;
+  // 1. Rellenar TODO el fondo de sol a sol con un color sólido y opaco (adiós transparencias)
+  ctx.fillStyle = '#0b0f19';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Destellos sutiles de rayos en el fondo
-  ctx.strokeStyle = 'rgba(0, 255, 204, 0.25)';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(120, 0); ctx.lineTo(180, 250);
-  ctx.moveTo(720, 0); ctx.lineTo(660, 250);
-  ctx.stroke();
+  // 2. Marco o cuerpo interno con otro tono sólido para que luzca chido
+  ctx.fillStyle = '#162238';
+  ctx.fillRect(10, 10, canvas.width - 20, canvas.height - 20);
 
+  // 3. Avatar circular del usuario
   const avatarX = 40;
   const avatarY = 50;
   const avatarRadius = 75;
 
-  // Círculo de respaldo por si el avatar tarda en cargar
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(avatarX + avatarRadius, avatarY + avatarRadius, avatarRadius, 0, Math.PI * 2, true);
-  ctx.closePath();
-  ctx.fillStyle = '#1f2937';
-  ctx.fill();
-  ctx.restore();
-
-  // Avatar circular del usuario
   try {
     const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
     const avatar = await Canvas.loadImage(avatarUrl);
@@ -111,7 +93,7 @@ async function generarRankCard(user, xpData) {
   ctx.arc(avatarX + avatarRadius, avatarY + avatarRadius, avatarRadius, 0, Math.PI * 2, true);
   ctx.stroke();
 
-  // Textos limpios y nítidos
+  // 4. Textos limpios y nítidos
   ctx.textAlign = 'left';
 
   ctx.font = 'bold 36px sans-serif';
@@ -126,8 +108,8 @@ async function generarRankCard(user, xpData) {
   ctx.fillStyle = '#00ffcc';
   ctx.fillText(`XP: ${xpData.xp} / ${xpData.level * 100}`, 230, 195);
 
-  // Retornamos en JPEG para que preserve el degradado y Discord lo pinte bien
-  return canvas.toBuffer('image/jpeg', { quality: 0.95 });
+  // Retornamos el buffer limpio
+  return canvas.toBuffer();
 }
 
 // Sistema de XP por mensajes y subida de nivel
