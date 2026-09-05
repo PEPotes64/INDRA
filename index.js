@@ -55,19 +55,18 @@ client.once('ready', async () => {
   }
 });
 
-// Función para generar la Rank Card totalmente transparente (sin fondo ni colores de relleno)
 async function generarRankCard(user, xpData) {
   const canvas = Canvas.createCanvas(900, 250);
   const ctx = canvas.getContext('2d');
 
-  // Limpiamos todo para que el fondo sea 100% transparente
+  // Limpiamos todo para que sea transparente
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const avatarX = 40;
-  const avatarY = 50;
-  const avatarRadius = 75;
+  const avatarX = 45;
+  const avatarY = 35;
+  const avatarRadius = 90; // Avatar más grandote y vistoso
 
-  // Círculo de respaldo por si el avatar tarda en cargar
+  // Círculo de respaldo del avatar
   ctx.save();
   ctx.beginPath();
   ctx.arc(avatarX + avatarRadius, avatarY + avatarRadius, avatarRadius, 0, Math.PI * 2, true);
@@ -78,7 +77,7 @@ async function generarRankCard(user, xpData) {
 
   // Avatar circular del usuario
   try {
-    const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
+    const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 512 });
     const avatar = await Canvas.loadImage(avatarUrl);
 
     ctx.save();
@@ -93,26 +92,35 @@ async function generarRankCard(user, xpData) {
   }
 
   // Borde brillante del avatar
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 5;
   ctx.strokeStyle = '#00ffcc';
   ctx.beginPath();
   ctx.arc(avatarX + avatarRadius, avatarY + avatarRadius, avatarRadius, 0, Math.PI * 2, true);
   ctx.stroke();
 
-  // Textos limpios y nítidos
+  // Sombra perrona para que los textos resalten bien macizo
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+  ctx.shadowBlur = 8;
+  ctx.shadowOffsetX = 3;
+  ctx.shadowOffsetY = 3;
+
+  // Textos grandes y legibles al centavo
   ctx.textAlign = 'left';
 
-  ctx.font = 'bold 36px sans-serif';
+  // Nombre de usuario (Gigante)
+  ctx.font = 'bold 48px sans-serif';
   ctx.fillStyle = '#ffffff';
-  ctx.fillText(user.username, 230, 95);
+  ctx.fillText(user.username, 270, 85);
 
-  ctx.font = 'bold 28px sans-serif';
+  // Nivel (Amarillo brillante destacado)
+  ctx.font = 'bold 36px sans-serif';
   ctx.fillStyle = '#FFD700';
-  ctx.fillText(`NIVEL ${xpData.level}`, 230, 145);
+  ctx.fillText(`NIVEL ${xpData.level}`, 270, 145);
 
-  ctx.font = '22px sans-serif';
+  // Barra de XP (Turquesa fosforescente)
+  ctx.font = 'bold 30px sans-serif';
   ctx.fillStyle = '#00ffcc';
-  ctx.fillText(`XP: ${xpData.xp} / ${xpData.level * 100}`, 230, 195);
+  ctx.fillText(`XP: ${xpData.xp} / ${xpData.level * 100}`, 270, 200);
 
   return canvas.toBuffer('image/png', { quality: 0.95 });
 }
