@@ -54,31 +54,35 @@ client.once('ready', async () => {
   }
 });
 
-// Función para generar la tarjeta leyendo directamente la imagen de tu repositorio
 async function generarRankCard(user, xpData) {
   const canvas = Canvas.createCanvas(900, 250);
   const ctx = canvas.getContext('2d');
 
-  // 1. Cargamos y dibujamos la imagen de fondo directamente desde el enlace RAW de GitHub
-  try {
-    const imageUrl = 'https://raw.githubusercontent.com/PEPotes64/INDRA/main/image_14.jpg';
-    const bgImage = await Canvas.loadImage(imageUrl);
-    ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
-  } catch (e) {
-    console.error('No se pudo cargar la imagen de fondo por red:', e);
-    ctx.fillStyle = '#0b0f19';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  }
-
-  // Capa oscura semi-transparente opcional para que los textos resalten chido sobre el fondo
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+  // Fondo sólido de respaldo por seguridad
+  ctx.fillStyle = '#0b0f19';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Intentamos pintar un degradado eléctrico perrón para asegurar estética total
+  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  gradient.addColorStop(0, '#0b0f19');
+  gradient.addColorStop(0.5, '#162238');
+  gradient.addColorStop(1, '#05070b');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Rayos sutiles de fondo
+  ctx.strokeStyle = 'rgba(0, 255, 204, 0.25)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(120, 0); ctx.lineTo(180, 250);
+  ctx.moveTo(720, 0); ctx.lineTo(660, 250);
+  ctx.stroke();
 
   const avatarX = 40;
   const avatarY = 50;
   const avatarRadius = 75;
 
-  // Círculo de respaldo para el avatar
+  // Círculo de respaldo del avatar
   ctx.save();
   ctx.beginPath();
   ctx.arc(avatarX + avatarRadius, avatarY + avatarRadius, avatarRadius, 0, Math.PI * 2, true);
@@ -87,7 +91,7 @@ async function generarRankCard(user, xpData) {
   ctx.fill();
   ctx.restore();
 
-  // 2. Avatar circular del usuario
+  // Avatar circular del usuario
   try {
     const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
     const avatar = await Canvas.loadImage(avatarUrl);
@@ -110,7 +114,7 @@ async function generarRankCard(user, xpData) {
   ctx.arc(avatarX + avatarRadius, avatarY + avatarRadius, avatarRadius, 0, Math.PI * 2, true);
   ctx.stroke();
 
-  // 3. Textos limpios y nítidos
+  // Textos limpios y nítidos
   ctx.textAlign = 'left';
 
   ctx.font = 'bold 36px sans-serif';
