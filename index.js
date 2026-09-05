@@ -1,12 +1,11 @@
 const http = require('http');
 http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Zeus ta vivo maje! > < :v');
+  res.end('Zeus ta vivo y al centavo maje! > < :v');
 }).listen(process.env.PORT || 3000);
 
-const { Client, GatewayIntentBits, EmbedBuilder, AttachmentBuilder, ApplicationCommandOptionType } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, ApplicationCommandOptionType } = require('discord.js');
 const mongoose = require('mongoose');
-const Canvas = require('canvas');
 require('dotenv').config();
 
 const UserXP = require('./UserXP.js');
@@ -27,7 +26,6 @@ mongoose.connect(process.env.MONGODB_URI)
 client.once('ready', async () => {
   console.log(`Bot prendido como ${client.user.tag}! Zeus ya anda zumbando > < :v`);
 
-  // Aki nomas keda el comando d dar XP
   const dataAddXp = {
     name: 'añadir-xp',
     description: 'Añade XP a un maje',
@@ -54,44 +52,6 @@ client.once('ready', async () => {
     console.error('Error con los comandos:', error);
   }
 });
-
-// LA NUEBA FUNSION CHILERA Y SENSILA Q ISIMOS DESDE SERO
-async function generarRankCard(user, xpData) {
-  const canvas = Canvas.createCanvas(800, 250);
-  const ctx = canvas.getContext('2d');
-
-  // Fondo gris solido pa q no de clavos de transparnsia
-  ctx.fillStyle = '#2b2d31'; 
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.textAlign = 'left';
-
-  // Letrotas blankas del ombre
-  ctx.fillStyle = '#ffffff'; 
-  ctx.font = 'bold 45px sans-serif';
-  ctx.fillText(user.username, 250, 90);
-
-  // El nibel en amariyo
-  ctx.fillStyle = '#FFD700'; 
-  ctx.font = 'bold 35px sans-serif';
-  ctx.fillText('NIVEL: ' + xpData.level, 250, 150);
-
-  // La XP en turkesa
-  ctx.fillStyle = '#00ffcc'; 
-  ctx.font = 'bold 30px sans-serif';
-  ctx.fillText('XP: ' + xpData.xp + ' / ' + (xpData.level * 100), 250, 200);
-
-  // Avatar asi nomas, en cuadradito y pelado
-  try {
-    const avatarUrl = user.displayAvatarURL({ extension: 'png', size: 256 });
-    const avatar = await Canvas.loadImage(avatarUrl);
-    ctx.drawImage(avatar, 40, 35, 180, 180);
-  } catch (error) {
-    console.log('No cargo la foto del cerote:', error);
-  }
-
-  return canvas.toBuffer('image/png');
-}
 
 // Kuando ablan y ganan xp
 client.on('messageCreate', async (message) => {
@@ -121,18 +81,19 @@ client.on('messageCreate', async (message) => {
     await userXpData.save();
 
     if (subioNivel) {
-      const buffer = await generarRankCard(message.author, userXpData);
-      const uniqueFileName = `rank-${Date.now()}.png`; // Con nombre chafa pa q no se trave el cache
-      const attachment = new AttachmentBuilder(buffer, { name: uniqueFileName });
-
+      // Usamos un embed pro en ves de imagen chafa
       const levelEmbed = new EmbedBuilder()
         .setColor('#00ffcc')
-        .setTitle('⚡ ZUBIO DE NIVEL ⚡')
-        .setDescription(`# Wena <@${userId}>!\nLlegaste al nivel **${userXpData.level}** > < :v`)
-        .setImage(`attachment://${uniqueFileName}`)
-        .setFooter({ text: 'Sistema de xp • Zeus', iconURL: client.user.displayAvatarURL() });
+        .setAuthor({ name: `¡Subida de Nivel!`, iconURL: message.author.displayAvatarURL({ dynamic: true }) })
+        .setThumbnail(message.author.displayAvatarURL({ dynamic: true, size: 512 }))
+        .setDescription(`Wena <@${userId}>! Anda puro fuego cerote 🔥`)
+        .addFields(
+          { name: '🌟 Nivel Alcanzado', value: `**${userXpData.level}**`, inline: true },
+          { name: '✨ XP Actual', value: `**${userXpData.xp} / ${userXpData.level * 100}**`, inline: true }
+        )
+        .setFooter({ text: 'Sistema de XP • Zeus', iconURL: client.user.displayAvatarURL() });
 
-      await message.channel.send({ embeds: [levelEmbed], files: [attachment] });
+      await message.channel.send({ embeds: [levelEmbed] });
     }
   } catch (error) {
     console.error('Clavo con la XP:', error);
@@ -166,23 +127,25 @@ client.on('interactionCreate', async (interaction) => {
 
       await userXpData.save();
 
-      const buffer = await generarRankCard(targetUser, userXpData);
-      const uniqueFileName = `rank-${Date.now()}.png`; // Rompiendo el cache de nuwebo
-      const attachment = new AttachmentBuilder(buffer, { name: uniqueFileName });
-
+      // Embed perron de confirmacion en ves de imagen
       const adminEmbed = new EmbedBuilder()
         .setColor('#FFD700')
-        .setTitle('⚡ XP PUESTA POR EL ADMIN')
-        .setDescription(`# Ya kedo <@${userId}>!\nTe zume **+${cantidad} XP**. Nivel actual: **${userXpData.level}** > < :v`)
-        .setImage(`attachment://${uniqueFileName}`)
+        .setAuthor({ name: `XP Puesta por Admin`, iconURL: targetUser.displayAvatarURL({ dynamic: true }) })
+        .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 512 }))
+        .setDescription(`Ya kedo maje <@${userId}>! Se sumaron **+${cantidad} XP**`)
+        .addFields(
+          { name: '📈 Nuevo Nivel', value: `**${userXpData.level}**`, inline: true },
+          { name: '⚡ Progreso', value: `**${userXpData.xp} / ${userXpData.level * 100}**`, inline: true }
+        )
         .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
 
-      await interaction.editReply({ embeds: [adminEmbed], files: [attachment] });
+      await interaction.editReply({ embeds: [adminEmbed] });
     } catch (error) {
       console.error('Clavo en /añadir-xp:', error);
-      await interaction.editReply('Puchica algo trono feo > < :v');
+      await interaction.editReply('Puchica algo trono feo con la base de datos > < :v');
     }
   }
 });
 
 client.login(process.env.DISCORD_TOKEN);
+    
