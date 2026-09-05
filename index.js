@@ -146,7 +146,7 @@ client.on('messageCreate', async (message) => {
       const buffer = await generarRankCard(message.author, userXpData);
       const attachment = new AttachmentBuilder(buffer, { name: 'rank-card.jpg' });
 
-      // El '#' al puro inicio de la descripción hace que Discord ponga el texto gigante (Impact)
+      // El '#' al puro inicio de la descripción hace que Discord ponga el texto gigante
       const levelEmbed = new EmbedBuilder()
         .setColor('#00ffcc')
         .setTitle('⚡ SUBIDA DE NIVEL ⚡')
@@ -163,11 +163,13 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-// Manejo del comando /añadir-xp
+// Manejo del comando /añadir-xp con deferReply para evitar el error 10062
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
   if (interaction.commandName === 'añadir-xp') {
+    await interaction.deferReply();
+
     const targetUser = interaction.options.getUser('usuario');
     const cantidad = interaction.options.getInteger('cant');
     const guildId = interaction.guild.id;
@@ -190,7 +192,6 @@ client.on('interactionCreate', async (interaction) => {
     const buffer = await generarRankCard(targetUser, userXpData);
     const attachment = new AttachmentBuilder(buffer, { name: 'rank-card.jpg' });
 
-    // El '#' al inicio de la descripción para que sea gigante también aquí
     const adminEmbed = new EmbedBuilder()
       .setColor('#FFD700')
       .setTitle('⚡ Actualización de XP Administrativa')
@@ -198,9 +199,9 @@ client.on('interactionCreate', async (interaction) => {
       .setImage('attachment://rank-card.jpg')
       .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
 
-    await interaction.reply({ embeds: [adminEmbed], files: [attachment] });
+    await interaction.editReply({ embeds: [adminEmbed], files: [attachment] });
   }
 });
 
 client.login(process.env.DISCORD_TOKEN);
-        
+      
