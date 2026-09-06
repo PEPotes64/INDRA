@@ -308,6 +308,10 @@ client.on('interactionCreate', async (interaction) => {
         {
           name: '2️⃣ Canales Ocultos (👁️ 5,000 XP)',
           value: 'Zeus te dejará ver **canales ocultos** por 1 día.'
+        },
+        {
+          name: '3️⃣ Caja de Regalo de Zeus (🎁 2,000 XP)',
+          value: '¡Probá tu suerte! Abrí una caja misteriosa de Zeus.'
         }
       )
       .setFooter({ text: 'Tienda Oficial • Zeus', iconURL: client.user.displayAvatarURL() });
@@ -327,6 +331,12 @@ client.on('interactionCreate', async (interaction) => {
           description: 'Acceso a canales ocultos por 1 día',
           value: 'comprar_ocultos',
           emoji: '👁️'
+        },
+        {
+          label: 'Caja de Regalo (2,000 XP)',
+          description: '¡Caja misteriosa de Zeus!',
+          value: 'comprar_caja',
+          emoji: '🎁'
         }
       ]);
 
@@ -350,7 +360,7 @@ client.on('interactionCreate', async (interaction) => {
         userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
       }
 
-      const duracionUnDia = 24 * 60 * 60 * 1000; // 24 Horas en milisegundos
+      const duracionUnDia = 24 * 60 * 60 * 1000;
 
       if (opcion === 'comprar_x2') {
         const PRECIO = 3000;
@@ -384,6 +394,41 @@ client.on('interactionCreate', async (interaction) => {
 
         await interaction.editReply('👁️ **¡Compra exitosa!** Le compraste el acceso a Canales Ocultos a Zeus por 1 día.');
       }
+      else if (opcion === 'comprar_caja') {
+        const PRECIO = 2000;
+        if (userXpData.xp < PRECIO) {
+          await interaction.editReply('Puchica maje, no te alcanza. Tené en cuenta que la Caja cuesta 2,000 XP.');
+          return;
+        }
+
+        // Cobramos los 2,000 XP
+        userXpData.xp -= PRECIO;
+
+        // 🎁 Genera una cantidad al azar entre 500 y 5,000 XP
+        const xpGanadaAzar = Math.floor(Math.random() * (5000 - 500 + 1)) + 500;
+
+        // Le sumamos la recompensa y chequeamos si sube de nivel
+        userXpData.xp += xpGanadaAzar;
+        
+        let subioNivel = false;
+        let xpNecesaria = (userXpData.level + 1) * 100;
+        while (userXpData.xp >= xpNecesaria) {
+          userXpData.xp -= xpNecesaria;
+          userXpData.level += 1;
+          xpNecesaria = (userXpData.level + 1) * 100;
+          subioNivel = true;
+        }
+
+        await userXpData.save();
+
+        let msjRespuesta = `🎁 **¡Abriste la Caja de Regalo de Zeus!**\n\nZeus te ha bendecido con **+${xpGanadaAzar} XP** al azar 🔥`;
+        if (subioNivel) {
+          msjRespuesta += `\n\n⭐ **¡Puchica! Con ese premio subiste al nivel ${userXpData.level}!**`;
+        }
+
+        await interaction.editReply(msjRespuesta);
+      }
+      
     } catch (err) {
       console.error('Clavo en la tienda:', err);
       await interaction.editReply('Puchica, algo trono al intentar hacer la compra.');
