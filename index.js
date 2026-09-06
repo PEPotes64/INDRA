@@ -8,10 +8,9 @@ const {
   Client, 
   GatewayIntentBits, 
   EmbedBuilder, 
-  ApplicationCommandOptionType,
-  StringSelectMenuBuilder,
-  StringSelectMenuOptionBuilder,
-  ActionRowBuilder
+  ActionRowBuilder, 
+  StringSelectMenuBuilder, 
+  StringSelectOptionBuilder
 } = require('discord.js');
 const mongoose = require('mongoose');
 require('dotenv').config();
