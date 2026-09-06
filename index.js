@@ -19,6 +19,10 @@ const client = new Client({
   ]
 });
 
+// 🚀 IDs de los roles de multiplicadores de XP Maje:
+const ROL_XP_X4 = '1545949309118316615'; // Poné aquí el ID de tu rol x4 en la línea 22
+const ROL_XP_X2 = '1545950431908470865'; // Rol x2 de XP
+
 const nivelesRoles = [
   { min: 1000, max: 99999, id: '1545889068963860480' },
   { min: 850, max: 999, id: '1545888858426703932' },
@@ -219,6 +223,15 @@ client.on('messageCreate', async (message) => {
   }
   else if (/<a?:\w+:\d+>/.test(message.content)) {
     xpGanada = 1 + (message.content.match(/<a?:\w+:\d+>/g) || []).length;
+  }
+
+  // ⚡ VERIFICAMOS MULTIPLICADORES DE ROL (XP X4 O XP X2)
+  if (message.member) {
+    if (message.member.roles.cache.has(ROL_XP_X4)) {
+      xpGanada = xpGanada * 4;
+    } else if (message.member.roles.cache.has(ROL_XP_X2)) {
+      xpGanada = xpGanada * 2;
+    }
   }
 
   try {
@@ -449,4 +462,4 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
-      
+            
