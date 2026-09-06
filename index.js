@@ -8,10 +8,9 @@ const {
   Client, 
   GatewayIntentBits, 
   EmbedBuilder, 
-  ActionRowBuilder, 
-  StringSelectMenuBuilder, 
-  StringSelectOptionBuilder,
-  ApplicationCommandOptionType
+  ApplicationCommandOptionType,
+  StringSelectMenuBuilder,
+  ActionRowBuilder
 } = require('discord.js');
 const mongoose = require('mongoose');
 require('dotenv').config();
@@ -27,17 +26,17 @@ const client = new Client({
   ]
 });
 
-// 🚀 IDs de los roles de multiplicadores y tienda
+// 🎒 IDs de los roles de multiplicadores y tienda
 const ROL_XP_X4 = '1234567890123456789'; // ID de tu rol x4
-const ROL_XP_X2 = '1545950431908470865'; // Rol x2 de XP (Precio: 3000 XP)
-const ROL_OCULTO = '1545963099788410950'; // Rol de canales ocultos (Precio: 5000 XP)
+const ROL_XP_X2 = '1545950431908470865'; // Rol x2 de XP
+const ROL_OCULTO = '1545963099788410950'; // Rol de canales ocultos
 
 const nivelesRoles = [
   { min: 1000, max: 99999, id: '1545889068963860480' },
   { min: 850, max: 999, id: '1545888858426703932' },
   { min: 800, max: 849, id: '1545888736145838201' },
   { min: 750, max: 799, id: '1545888446151663636' },
-  { min: 700, max: 749, id: '1545888262109790348' },
+  { min: 700, max: 749, id: '154588262109790348' },
   { min: 650, max: 699, id: '1545887696977657916' },
   { min: 600, max: 649, id: '1545886582706544770' },
   { min: 550, max: 599, id: '1545886425717805086' },
@@ -49,19 +48,20 @@ const nivelesRoles = [
   { min: 250, max: 299, id: '1545884764438011986' },
   { min: 200, max: 249, id: '1545884525395976263' },
   { min: 150, max: 199, id: '1545884262132228217' },
-  { min: 125, max: 149, id: '1545883901098991666' },
-  { min: 100, max: 124, id: '1545881490582147112' },
-  { min: 80, max: 99, id: '1545881103158747196' },
-  { min: 70, max: 79, id: '1359367583001870378' },
-  { min: 60, max: 69, id: '1359366992628289566' },
-  { min: 50, max: 59, id: '1359366824801865830' },
-  { min: 40, max: 49, id: '1359366460626964510' },
-  { min: 30, max: 39, id: '1359366104060788766' },
-  { min: 20, max: 29, id: '1359365813416493106' },
-  { min: 15, max: 19, id: '1359365597066166383' },
-  { min: 10, max: 14, id: '1359365393084448829' },
-  { min: 5, max: 9, id: '1359364859333967882' },
-  { min: 1, max: 4, id: '1359363942727815269' }
+  { min: 125, max: 149, id: '1545883826121322817' },
+  { min: 100, max: 124, id: '1545883001090901665' },
+  { min: 80, max: 99, id: '1545881490582167112' },
+  { min: 70, max: 79, id: '1545881103158747106' },
+  { min: 60, max: 69, id: '1359366160758300738' },
+  { min: 50, max: 59, id: '1359366092628280566' },
+  { min: 40, max: 49, id: '1359366024806168516' },
+  { min: 30, max: 39, id: '1359365955097722112' },
+  { min: 20, max: 29, id: '1359365884605064510' },
+  { min: 15, max: 19, id: '1359365813416403106' },
+  { min: 10, max: 14, id: '1359365706667823104' },
+  { min: 5, max: 9, id: '1359365393084448829' },
+  { min: 1, max: 4, id: '1359365239384260682' },
+  { min: 0, max: 0, id: '1359363942727815260' }
 ];
 
 const rolesTop3 = [
@@ -70,7 +70,7 @@ const rolesTop3 = [
   '1541899453521330216'
 ];
 
-mongoose.connect(process.env.MONGODB_URI)
+mongoose.connect(process.env.MONGO_URI || process.env.MONGODB_URI)
   .then(() => console.log('Base de datos conectada al 100 > < :v'))
   .catch(err => console.error('Puchica fallo la base de datos:', err));
 
@@ -79,19 +79,19 @@ client.once('ready', async () => {
 
   const dataAddXp = {
     name: 'añadir-xp',
-    description: 'Añade XP a un maje',
+    description: 'Añade XP a un maje.',
     options: [
-      { name: 'usuario', type: ApplicationCommandOptionType.User, description: 'El chavo', required: true },
-      { name: 'cant', type: ApplicationCommandOptionType.Integer, description: 'XP a dar', required: true }
+      { name: 'usuario', type: ApplicationCommandOptionType.User, description: 'Usuario a quien darle XP', required: true },
+      { name: 'cant', type: ApplicationCommandOptionType.Integer, description: 'Cantidad de XP a sumar', required: true }
     ]
   };
 
   const dataQuitarXp = {
     name: 'quitar-xp',
-    description: 'Le quita XP a un maje',
+    description: 'Quita XP a un maje.',
     options: [
-      { name: 'usuario', type: ApplicationCommandOptionType.User, description: 'El chavo', required: true },
-      { name: 'cant', type: ApplicationCommandOptionType.Integer, description: 'XP a quitar', required: true }
+      { name: 'usuario', type: ApplicationCommandOptionType.User, description: 'Usuario a quien quitar XP', required: true },
+      { name: 'cant', type: ApplicationCommandOptionType.Integer, description: 'Cantidad de XP a restar', required: true }
     ]
   };
 
@@ -99,18 +99,18 @@ client.once('ready', async () => {
     name: 'xp',
     description: 'Muestra tu nivel y XP actual',
     options: [
-      { name: 'usuario', type: ApplicationCommandOptionType.User, description: 'El chavo (opcional)', required: false }
+      { name: 'usuario', type: ApplicationCommandOptionType.User, description: 'Usuario a consultar', required: false }
     ]
   };
 
   const dataTop = {
     name: 'top',
-    description: 'Muestra el Top 10 de majes con más XP',
+    description: 'Muestra el Top 10 de majes con más XP'
   };
 
   const dataComprar = {
     name: 'comprar',
-    description: 'Abre la tienda de Zeus para comprar bendiciones temporales',
+    description: 'Abre la tienda de Zeus para comprar bendiciones temporales'
   };
 
   try {
@@ -124,11 +124,11 @@ client.once('ready', async () => {
     console.error('Error con los comandos:', error);
   }
 
-  // 🕒 REVISIÓN CADA MINUTO PARA QUITAR ROLES EXPIRADOS (24 Horas)
+  // REVISIÓN CADA MINUTO PARA QUITAR ROLES EXPIRADOS (24 Horas)
   setInterval(async () => {
     try {
       const ahora = new Date();
-      
+
       // Revisa expiración de XP x2
       const usuariosX2Expirados = await UserXP.find({ rolX2Hasta: { $lte: ahora } });
       for (const u of usuariosX2Expirados) {
@@ -159,7 +159,7 @@ client.once('ready', async () => {
     } catch (err) {
       console.error('Clavo chequeando expiraciones de roles:', err);
     }
-  }, 60000); 
+  }, 60000);
 });
 
 async function checkearRoles(member, nivelActual, guild) {
@@ -169,7 +169,7 @@ async function checkearRoles(member, nivelActual, guild) {
 
     const idsDeNiveles = nivelesRoles.map(r => r.id);
     const rolesAQuitar = member.roles.cache.filter(r => idsDeNiveles.includes(r.id) && r.id !== rangoEncontrado.id);
-    
+
     if (rolesAQuitar.size > 0) {
       await member.roles.remove(rolesAQuitar);
     }
@@ -179,7 +179,7 @@ async function checkearRoles(member, nivelActual, guild) {
       await member.roles.add(rolNuevoObj);
     }
   } catch (err) {
-    console.error("Clavo intentando actualizar el rol del maje:", err);
+    console.error('Clavo intentando actualizar el rol del maje:', err);
   }
 }
 
@@ -236,19 +236,17 @@ client.on('messageCreate', async (message) => {
     if (tipo.startsWith('image/')) xpGanada = 3;
     else if (tipo.startsWith('video/')) xpGanada = 4;
     else if (tipo.startsWith('audio/')) xpGanada = 2;
-  }
-  else if (message.content.includes('giphy.com') || message.content.includes('tenor.com') || message.embeds.some(e => e.type === 'gifv')) {
+  } else if (message.content.includes('giphy.com') || message.content.includes('tenor.com')) {
     xpGanada = 2;
-  }
-  else if (/<a?:\w+:\d+>/.test(message.content)) {
+  } else if (/<a?:\w+:\d+>/.test(message.content)) {
     xpGanada = 1 + (message.content.match(/<a?:\w+:\d+>/g) || []).length;
   }
 
   if (message.member) {
     if (message.member.roles.cache.has(ROL_XP_X4)) {
-      xpGanada = xpGanada * 4;
+      xpGanada *= 4;
     } else if (message.member.roles.cache.has(ROL_XP_X2)) {
-      xpGanada = xpGanada * 2;
+      xpGanada *= 2;
     }
   }
 
@@ -274,21 +272,21 @@ client.on('messageCreate', async (message) => {
 
     if (subioNivel) {
       const levelEmbed = new EmbedBuilder()
-        .setColor('#00ffea')
-        .setAuthor({ name: 'Subida de Nivel!', iconURL: message.author.displayAvatarURL({ dynamic: true }) })
+        .setColor('#00ffaa')
+        .setAuthor({ name: 'Subida de Nivel!', iconURL: message.author.displayAvatarURL() })
         .setThumbnail(message.author.displayAvatarURL({ dynamic: true, size: 512 }))
-        .setDescription(`<@${userId}> Haz sido ayudado por Zeus, subiste de nivel chatio 🔥`)
+        .setDescription(`<@${userId}> Has sido ayudado por Zeus, subiste de nivel 🔥`)
         .addFields(
-          { name: '🌟 Tu Nuevo nivel es:', value: `**${userXpData.level}**`, inline: true },
-          { name: '✨ Esta es tu XP:', value: `**${userXpData.xp} / ${(userXpData.level + 1) * 100}**`, inline: true }
+          { name: '⭐ Tu Nuevo nivel es:', value: `**${userXpData.level}**`, inline: true },
+          { name: '✨ Esta es tu XP:', value: `**${userXpData.xp}** / ${(userXpData.level + 1) * 100}`, inline: true }
         )
         .setFooter({ text: 'Sistema de XP • Zeus', iconURL: client.user.displayAvatarURL() });
 
       await message.channel.send({ embeds: [levelEmbed] });
-      
-      if(message.member) {
-        await checkearRoles(message.member, userXpData.level, message.guild);
-      }
+    }
+
+    if (message.member) {
+      await checkearRoles(message.member, userXpData.level, message.guild);
     }
   } catch (error) {
     console.error('Clavo con la XP:', error);
@@ -299,54 +297,46 @@ client.on('interactionCreate', async (interaction) => {
   // 🛒 COMANDO /COMPRAR
   if (interaction.isChatInputCommand() && interaction.commandName === 'comprar') {
     const tiendaEmbed = new EmbedBuilder()
-      .setColor('#10b981')
+      .setColor('#00ffaa')
       .setTitle('🛒 Tienda de Bendiciones de Zeus')
       .setDescription('Gastá tu XP acumulada para obtener ventajas temporales por 1 día 🔥')
       .addFields(
-        { 
-          name: '1️⃣ Rol XP X2 (⚡ 3,000 XP)', 
-          value: 'Zeus te bendecirá dándote **XP X2** a cambio de una inversión por 1 día.' 
-        },
-        { 
-          name: '2️⃣ Canales Ocultos (👁️ 5,000 XP)', 
-          value: 'Zeus te dejará ver **canales ocultos** por 1 día.' 
+        {
+          name: '1️⃣ Rol XP X2 (⚡ 3,000 XP)',
+          value: 'Zeus te bendecirá dándote XP X2 a cambio de una inversión por 1 día.'
         },
         {
-      name: '3️⃣ Caja Sorpresa (🎁 2,000 XP)',
-      value: 'Probá tu suerte y ganá desde **100 hasta 10,000 XP**.'
+          name: '2️⃣ Canales Ocultos (👁️ 5,000 XP)',
+          value: 'Zeus te dejará ver **canales ocultos** por 1 día.'
         }
       )
       .setFooter({ text: 'Tienda Oficial • Zeus', iconURL: client.user.displayAvatarURL() });
 
-const menuSelec = new StringSelectMenuBuilder()
-  .setCustomId('tienda_menu')
-  .setPlaceholder('Elegí un producto para comprar...')
-  .addOptions(
-    new StringSelectOptionBuilder()
-      .setLabel('Rol XP X2 (3,000 XP)')
-      .setDescription('Duplica tu XP ganada por 1 día')
-      .setValue('comprar_x2')
-      .setEmoji('⚡'),
-    new StringSelectOptionBuilder()
-      .setLabel('Canales Ocultos (5,000 XP)')
-      .setDescription('Acceso a canales ocultos por 1 día')
-      .setValue('comprar_ocultos')
-      .setEmoji('👁️'),
-    // 🎁 NUEVO ÍTEM AGREGADO AQUÍ:
-    new StringSelectOptionBuilder()
-      .setLabel('Caja Sorpresa (2,000 XP)')
-      .setDescription('Probá tu suerte y ganá de 100 a 10,000 XP')
-      .setValue('comprar_caja')
-      .setEmoji('🎁')
-  );
-  
+    const menuSelec = new StringSelectMenuBuilder()
+      .setCustomId('tienda_menu')
+      .setPlaceholder('Elegí un producto para comprar...')
+      .addOptions([
+        {
+          label: 'Rol XP X2 (3,000 XP)',
+          description: 'Duplica tu XP ganada por 1 día',
+          value: 'comprar_x2',
+          emoji: '⚡'
+        },
+        {
+          label: 'Canales Ocultos (5,000 XP)',
+          description: 'Acceso a canales ocultos por 1 día',
+          value: 'comprar_ocultos',
+          emoji: '👁️'
+        }
+      ]);
+
     const fila = new ActionRowBuilder().addComponents(menuSelec);
 
     await interaction.reply({ embeds: [tiendaEmbed], components: [fila] });
     return;
   }
 
-  // 📩 PROCESO DE COMPRA DEL MENU DESPLEGABLE
+  // 🛍️ PROCESO DE COMPRA DEL MENÚ DESPLEGABLE
   if (interaction.isStringSelectMenu() && interaction.customId === 'tienda_menu') {
     await interaction.deferReply({ ephemeral: true });
 
@@ -365,7 +355,7 @@ const menuSelec = new StringSelectMenuBuilder()
       if (opcion === 'comprar_x2') {
         const PRECIO = 3000;
         if (userXpData.xp < PRECIO) {
-          await interaction.editReply(`Puchica maje, no te alcanza. Tenés **${userXpData.xp} XP** y el Rol X2 cuesta **${PRECIO} XP** > < :v`);
+          await interaction.editReply('Puchica maje, no te alcanza. Tené en cuenta que cuesta 3,000 XP.');
           return;
         }
 
@@ -376,13 +366,12 @@ const menuSelec = new StringSelectMenuBuilder()
         const rolObj = interaction.guild.roles.cache.get(ROL_XP_X2);
         if (rolObj) await interaction.member.roles.add(rolObj);
 
-        await interaction.editReply(`🔥 **¡Compra exitosa!** Le compraste a Zeus el **Rol XP X2** por **3,000 XP**. Disfrutá tu multiplicador por las próximas 24 horas > < :v!`);
-      }
-
+        await interaction.editReply('🔥 **¡Compra exitosa!** Le compraste el Rol XP X2 a Zeus por 1 día.');
+      } 
       else if (opcion === 'comprar_ocultos') {
         const PRECIO = 5000;
         if (userXpData.xp < PRECIO) {
-          await interaction.editReply(`Puchica maje, no te alcanza. Tenés **${userXpData.xp} XP** y el acceso cuesta **${PRECIO} XP** > < :v`);
+          await interaction.editReply('Puchica maje, no te alcanza. Tené en cuenta que cuesta 5,000 XP.');
           return;
         }
 
@@ -393,73 +382,16 @@ const menuSelec = new StringSelectMenuBuilder()
         const rolObj = interaction.guild.roles.cache.get(ROL_OCULTO);
         if (rolObj) await interaction.member.roles.add(rolObj);
 
-        await interaction.editReply(`👁️ **¡Compra exitosa!** Le compraste a Zeus el acceso a **Canales Ocultos** por **5,000 XP**. Tenés 24 horas para curosear todo > < :v!`);
+        await interaction.editReply('👁️ **¡Compra exitosa!** Le compraste el acceso a Canales Ocultos a Zeus por 1 día.');
       }
-
-      
-      // 👇 JUSTO AQUI EN LA LINEA 394 PEGAS EL BLOQUE DE LA CAJA 👇
-      else if (opcion === 'comprar_caja') {
-        const PRECIO = 2000;
-        if (userXpData.xp < PRECIO) {
-          await interaction.editReply('Puchica maje, no te alcanza para la Caja Sorpresa. Tenés que juntar más XP > < :v');
-          return;
-        }
-
-        userXpData.xp -= PRECIO;
-        await userXpData.save();
-
-        const prob = Math.random() * 100;
-        let premioXP = 0;
-        let mensaje = '';
-        let color = '';
-
-        if (prob <= 20) {
-          premioXP = Math.floor(Math.random() * (500 - 100 + 1)) + 100;
-          mensaje = `💀 **¡Qué mala pata maje!** Abriste la caja y solo hallaste **+${premioXP} XP**. Perdiste la inversión > < :v`;
-          color = '#e74c3c';
-        } else if (prob <= 70) {
-          premioXP = Math.floor(Math.random() * (1900 - 1000 + 1)) + 1000;
-          mensaje = `🟡 **Casi casi...** La caja te dio **+${premioXP} XP**. Casi recuperás lo tuyo.`;
-          color = '#f1c40f';
-        } else if (prob <= 90) {
-          premioXP = Math.floor(Math.random() * (3500 - 2200 + 1)) + 2200;
-          mensaje = `🔥 **¡Buenas ganancias!** Te salieron **+${premioXP} XP** en la caja. ¡Le sacaste ganancia!`;
-          color = '#2ecc71';
-        } else {
-          premioXP = Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000;
-          mensaje = `⚡🎉 **¡¡JACKPOT DEL OLIMPO MAJE!!** 🎉⚡\n\n¡Zeus te bendijo con un premio legendario de **+${premioXP} XP**! > < :v`;
-          color = '#9b59b6';
-        }
-
-        userXpData.xp += premioXP;
-        while (userXpData.xp >= (userXpData.level + 1) * 100) {
-          userXpData.xp -= (userXpData.level + 1) * 100;
-          userXpData.level += 1;
-        }
-        await userXpData.save();
-
-        const cajaEmbed = new EmbedBuilder()
-          .setColor(color)
-          .setTitle('🎁 ¡Caja Sorpresa Abierta!')
-          .setDescription(mensaje)
-          .addFields(
-            { name: '⭐ Nivel Actual', value: `**${userXpData.level}**`, inline: true },
-            { name: '✨ Tu XP total', value: `**${userXpData.xp} XP**`, inline: true }
-          )
-          .setFooter({ text: 'Tienda Oficial • Zeus', iconURL: client.user.displayAvatarURL() });
-
-        await interaction.editReply({ embeds: [cajaEmbed] });
-      }
-      // 👆 AQUI TERMINA EL NUEVO BLOQUE 👆
-
     } catch (err) {
       console.error('Clavo en la tienda:', err);
-      await interaction.editReply('Puchica, algo trono al intentar hacer la compra en la tienda > < :v');
+      await interaction.editReply('Puchica, algo trono al intentar hacer la compra.');
     }
     return;
   }
 
-  // OTROS COMANDOS (/AÑADIR-XP, /QUITAR-XP, /XP, /TOP)
+  // 🛠️ OTROS COMANDOS (AÑADIR-XP, QUITAR-XP, XP, TOP)
   if (!interaction.isChatInputCommand()) return;
 
   if (interaction.commandName === 'añadir-xp') {
@@ -484,21 +416,21 @@ const menuSelec = new StringSelectMenuBuilder()
 
       const adminEmbed = new EmbedBuilder()
         .setColor('#ffd700')
-        .setAuthor({ name: 'XP Puesta por Admin', iconURL: targetUser.displayAvatarURL({ dynamic: true }) })
+        .setAuthor({ name: 'XP Puesta por Admin', iconURL: targetUser.displayAvatarURL() })
         .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 512 }))
-        .setDescription(`<@${userId}> Haz sido ayudado por Zeus, se te sumaron **+${cantidad} XP**`)
+        .setDescription(`<@${userId}> Has sido ayudado por Zeus, se te sumo XP.`)
         .addFields(
-          { name: '🌟 Tu Nuevo nivel es:', value: `**${userXpData.level}**`, inline: true },
-          { name: '✨ Esta es tu XP:', value: `**${userXpData.xp} / ${(userXpData.level + 1) * 100}**`, inline: true }
+          { name: '⭐ Tu Nuevo nivel es:', value: `**${userXpData.level}**`, inline: true },
+          { name: '✨ Esta es tu XP:', value: `**${userXpData.xp}** / ${(userXpData.level + 1) * 100}`, inline: true }
         )
         .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
 
       await interaction.editReply({ embeds: [adminEmbed] });
       const member = interaction.guild.members.cache.get(userId);
-      if(member) await checkearRoles(member, userXpData.level, interaction.guild);
+      if (member) await checkearRoles(member, userXpData.level, interaction.guild);
     } catch (error) {
       console.error('Clavo en añadir-xp:', error);
-      await interaction.editReply('Puchica algo trono feo con la base de datos > < :v');
+      await interaction.editReply('Puchica algo trono feo con la base de datos.');
     }
   }
 
@@ -512,7 +444,7 @@ const menuSelec = new StringSelectMenuBuilder()
     try {
       let userXpData = await UserXP.findOne({ userId, guildId });
       if (!userXpData) {
-        await interaction.editReply('Puchica, ese maje ni siquiera tiene registro de XP todavía > < :v');
+        await interaction.editReply('Puchica, ese maje ni siquiera tiene registro.');
         return;
       }
 
@@ -530,21 +462,21 @@ const menuSelec = new StringSelectMenuBuilder()
 
       const adminEmbed = new EmbedBuilder()
         .setColor('#ff4747')
-        .setAuthor({ name: 'XP Quitada por Admin', iconURL: targetUser.displayAvatarURL({ dynamic: true }) })
+        .setAuthor({ name: 'XP Quitada por Admin', iconURL: targetUser.displayAvatarURL() })
         .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 512 }))
-        .setDescription(`<@${userId}> Zeus te ha castigado, se te restaron **-${cantidad} XP**`)
+        .setDescription(`<@${userId}> Zeus te ha castigado, se te resto XP.`)
         .addFields(
-          { name: '🌟 Tu Nivel actual es:', value: `**${userXpData.level}**`, inline: true },
-          { name: '✨ Esta es tu XP:', value: `**${userXpData.xp} / ${(userXpData.level + 1) * 100}**`, inline: true }
+          { name: '⭐ Tu Nivel actual es:', value: `**${userXpData.level}**`, inline: true },
+          { name: '✨ Esta es tu XP:', value: `**${userXpData.xp}** / ${(userXpData.level + 1) * 100}`, inline: true }
         )
         .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
 
       await interaction.editReply({ embeds: [adminEmbed] });
       const member = interaction.guild.members.cache.get(userId);
-      if(member) await checkearRoles(member, userXpData.level, interaction.guild);
+      if (member) await checkearRoles(member, userXpData.level, interaction.guild);
     } catch (error) {
       console.error('Clavo en quitar-xp:', error);
-      await interaction.editReply('Puchica algo trono feo con la base de datos al quitar XP > < :v');
+      await interaction.editReply('Puchica algo trono feo con la base de datos.');
     }
   }
 
@@ -562,19 +494,19 @@ const menuSelec = new StringSelectMenuBuilder()
 
       const xpEmbed = new EmbedBuilder()
         .setColor('#3b82f6')
-        .setAuthor({ name: `Nivel y XP de ${targetUser.username}`, iconURL: targetUser.displayAvatarURL({ dynamic: true }) })
+        .setAuthor({ name: `Nivel y XP de ${targetUser.username}`, iconURL: targetUser.displayAvatarURL() })
         .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 512 }))
-        .setDescription(`Consulta de experiencia en el servidor 🔥`)
+        .setDescription('Consulta de experiencia en el servidor 🔥')
         .addFields(
-          { name: '🌟 Nivel actual:', value: `**${userXpData.level}**`, inline: true },
-          { name: '✨ Puntos de XP:', value: `**${userXpData.xp} / ${xpNecesaria}**`, inline: true }
+          { name: '⭐ Nivel actual:', value: `**${userXpData.level}**`, inline: true },
+          { name: '✨ Puntos de XP:', value: `**${userXpData.xp}** / ${xpNecesaria}`, inline: true }
         )
         .setFooter({ text: 'Consulta de XP • Zeus', iconURL: client.user.displayAvatarURL() });
 
       await interaction.editReply({ embeds: [xpEmbed] });
     } catch (error) {
       console.error('Clavo consultando la XP:', error);
-      await interaction.editReply('Puchica algo trono feo al intentar ver la XP > < :v');
+      await interaction.editReply('Puchica algo trono feo al intentar ver tu XP.');
     }
   }
 
@@ -590,7 +522,7 @@ const menuSelec = new StringSelectMenuBuilder()
         .limit(10);
 
       if (!topUsers || topUsers.length === 0) {
-        await interaction.editReply('Aún no hay nadie registrado en la tabla de clasificación > < :v');
+        await interaction.editReply('Aún no hay nadie registrado en la tabla de XP.');
         return;
       }
 
@@ -601,13 +533,13 @@ const menuSelec = new StringSelectMenuBuilder()
         const u = topUsers[i];
         const medalla = medallas[i] || `**#${i + 1}**`;
         const maxXP = (u.level + 1) * 100;
-        
-                descripcionTop += `${medalla} <@${u.userId}> — **Nivel ${u.level}** (${u.xp}/${maxXP} XP)\n`;
+
+        descripcionTop += `${medalla} <@${u.userId}> — **Nivel ${u.level}** (${u.xp}/${maxXP} XP)\n`;
       }
 
       const topEmbed = new EmbedBuilder()
-        .setColor('#f59e0b')
-        .setTitle('🏆 Leaderboard — Top 10 del Servidor')
+        .setColor('#ffd700')
+        .setTitle('🏆 Leaderboard - Top 10 del Servidor')
         .setThumbnail(interaction.guild.iconURL({ dynamic: true }) || client.user.displayAvatarURL())
         .setDescription(descripcionTop)
         .setFooter({ text: 'Tabla de Clasificación • Zeus', iconURL: client.user.displayAvatarURL() });
@@ -615,9 +547,9 @@ const menuSelec = new StringSelectMenuBuilder()
       await interaction.editReply({ embeds: [topEmbed] });
     } catch (error) {
       console.error('Clavo en el comando top:', error);
-      await interaction.editReply('Puchica algo trono feo al sacar el top de majes > < :v');
+      await interaction.editReply('Puchica algo trono feo al sacar el top.');
     }
   }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+client.login(process.env.TOKEN || process.env.DISCORD_TOKEN);
