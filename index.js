@@ -385,62 +385,98 @@ client.on('interactionCreate', async (interaction) => {
         data.xp = xpRestante;
       };
 
-      const duracionUnDia = 24 * 60 * 60 * 1000;
+      const DOS_DIAS_MS = 2 * 24 * 60 * 60 * 1000; // 48 Horas
+      const ahora = Date.now();
       let xpTotalActual = obtenerXpTotal(userXpData);
 
+      // ⏳ Función helper para verificar si el producto está en cooldown
+      const verificarCooldown = (ultimaFecha) => {
+        if (!ultimaFecha) return null;
+        const tiempoPasado = ahora - new Date(ultimaFecha).getTime();
+        if (tiempoPasado < DOS_DIAS_MS) {
+          const restanteMs = DOS_DIAS_MS - tiempoPasado;
+          const h = Math.floor(restanteMs / (1000 * 60 * 60));
+          const m = Math.floor((restanteMs % (1000 * 60 * 60)) / (1000 * 60));
+          return `${h}h y ${m}m`;
+        }
+        return null;
+      };
+
+      // 1️⃣ OPCIÓN: ROL XP X2
       if (opcion === 'comprar_x2') {
+        const cooldownMsj = verificarCooldown(userXpData.ultimoUsoX2);
+        if (cooldownMsj) {
+          await interaction.editReply(`⏳ **¡Aguantá el coche, maje!** Ya compraste el Rol XP X2 hace poco. Tenés que esperar **${cooldownMsj}** para volverlo a comprar.`);
+          return;
+        }
+
         const PRECIO = 3000;
         if (xpTotalActual < PRECIO) {
-          await interaction.editReply('Puchica maje, no te alcanza. Tené en cuenta que cuesta 3,000 XP en total.');
+          await interaction.editReply('Puchica maje, no te alcanza. Tené en cuenta que cuesta 3,000 XP acumulada.');
           return;
         }
 
         xpTotalActual -= PRECIO;
         recalcularProgreso(userXpData, xpTotalActual);
-        userXpData.rolX2Hasta = new Date(Date.now() + duracionUnDia);
+        userXpData.rolX2Hasta = new Date(ahora + (24 * 60 * 60 * 1000)); // Rol por 24 horas
+        userXpData.ultimoUsoX2 = new Date(ahora);                         // Registra cooldown de 48h
         await userXpData.save();
 
         const rolObj = interaction.guild.roles.cache.get(ROL_XP_X2);
         if (rolObj) await interaction.member.roles.add(rolObj);
 
-        await interaction.editReply('🔥 **¡Compra exitosa!** Le compraste el Rol XP X2 a Zeus por 1 día.');
+        await interaction.editReply('🔥 **¡Compra exitosa!** Le compraste el Rol XP X2 a Zeus por 1 día.\n*Recordá que podés volver a comprarlo en 2 días.*');
       } 
+      // 2️⃣ OPCIÓN: CANALES OCULTOS
       else if (opcion === 'comprar_ocultos') {
+        const cooldownMsj = verificarCooldown(userXpData.ultimoUsoOculto);
+        if (cooldownMsj) {
+          await interaction.editReply(`⏳ **¡Aguantá el coche, maje!** Ya compraste el acceso a Canales Ocultos hace poco. Tenés que esperar **${cooldownMsj}** para volverlo a comprar.`);
+          return;
+        }
+
         const PRECIO = 5000;
         if (xpTotalActual < PRECIO) {
-          await interaction.editReply('Puchica maje, no te alcanza. Tené en cuenta que cuesta 5,000 XP en total.');
+          await interaction.editReply('Puchica maje, no te alcanza. Tené en cuenta que cuesta 5,000 XP acumulada.');
           return;
         }
 
         xpTotalActual -= PRECIO;
         recalcularProgreso(userXpData, xpTotalActual);
-        userXpData.rolOcultoHasta = new Date(Date.now() + duracionUnDia);
+        userXpData.rolOcultoHasta = new Date(ahora + (24 * 60 * 60 * 1000)); // Acceso por 24 horas
+        userXpData.ultimoUsoOculto = new Date(ahora);                         // Registra cooldown de 48h
         await userXpData.save();
 
         const rolObj = interaction.guild.roles.cache.get(ROL_OCULTO);
         if (rolObj) await interaction.member.roles.add(rolObj);
 
-        await interaction.editReply('👁️ **¡Compra exitosa!** Le compraste el acceso a Canales Ocultos a Zeus por 1 día.');
+        await interaction.editReply('👁️ **¡Compra exitosa!** Le compraste el acceso a Canales Ocultos a Zeus por 1 día.\n*Recordá que podés volver a comprarlo en 2 días.*');
       }
+      // 3️⃣ OPCIÓN: CAJA DE REGALO
       else if (opcion === 'comprar_caja') {
+        const cooldownMsj = verificarCooldown(userXpData.ultimoUsoCaja);
+        if (cooldownMsj) {
+          await interaction.editReply(`⏳ **¡Aguantá el coche, maje!** Ya compraste tu Caja de Regalo. Tenés que esperar **${cooldownMsj}** para volver a probar tu suerte con Zeus.`);
+          return;
+        }
+
         const PRECIO = 2000;
         if (xpTotalActual < PRECIO) {
           await interaction.editReply('Puchica maje, no te alcanza. Tené en cuenta que la Caja cuesta 2,000 XP acumulada.');
           return;
         }
 
-        // Restamos el precio de la XP Total
         xpTotalActual -= PRECIO;
-
-        // Premio al azar entre 500 y 5,000 XP
         const xpGanadaAzar = Math.floor(Math.random() * (5000 - 500 + 1)) + 500;
         xpTotalActual += xpGanadaAzar;
 
-        // Reconstruimos el nivel y la XP de la BD con el nuevo total
         recalcularProgreso(userXpData, xpTotalActual);
+        userXpData.ultimoUsoCaja = new Date(ahora); // Registra cooldown de 48h
         await userXpData.save();
 
-        await interaction.editReply(`🎁 **¡Abriste la Caja de Regalo de Zeus!**\n\nZeus te ha bendecido con **+${xpGanadaAzar} XP** al azar 🔥\nQuedaste en **Nivel ${userXpData.level}** (${userXpData.xp}/${(userXpData.level + 1) * 100} XP).`);
+        await interaction.editReply(
+          `🎁 **¡Abriste la Caja de Regalo de Zeus!**\n\nZeus te ha bendecido con **+${xpGanadaAzar} XP** al azar 🔥\nQuedaste en **Nivel ${userXpData.level}** (${userXpData.xp}/${(userXpData.level + 1) * 100} XP).\n\n*Recordá que podés volver a comprar otra dentro de 2 días.*`
+        );
       }
     } catch (err) {
       console.error('Clavo en la tienda:', err);
