@@ -310,26 +310,36 @@ client.on('interactionCreate', async (interaction) => {
         { 
           name: '2️⃣ Canales Ocultos (👁️ 5,000 XP)', 
           value: 'Zeus te dejará ver **canales ocultos** por 1 día.' 
+        },
+        {
+      name: '3️⃣ Caja Sorpresa (🎁 2,000 XP)',
+      value: 'Probá tu suerte y ganá desde **100 hasta 10,000 XP**.'
         }
       )
       .setFooter({ text: 'Tienda Oficial • Zeus', iconURL: client.user.displayAvatarURL() });
 
-    const menuSelec = new StringSelectMenuBuilder()
-      .setCustomId('tienda_menu')
-      .setPlaceholder('Elegí un producto para comprar...')
-      .addOptions(
-        new StringSelectMenuOptionBuilder()
-          .setLabel('Rol XP X2 (3,000 XP)')
-          .setDescription('Duplica tu XP ganada por 1 día')
-          .setValue('comprar_x2')
-          .setEmoji('⚡'),
-        new StringSelectMenuOptionBuilder()
-          .setLabel('Canales Ocultos (5,000 XP)')
-          .setDescription('Acceso a canales ocultos por 1 día')
-          .setValue('comprar_ocultos')
-          .setEmoji('👁️')
-      );
-
+const menuSelec = new StringSelectMenuBuilder()
+  .setCustomId('tienda_menu')
+  .setPlaceholder('Elegí un producto para comprar...')
+  .addOptions(
+    new StringSelectOptionBuilder()
+      .setLabel('Rol XP X2 (3,000 XP)')
+      .setDescription('Duplica tu XP ganada por 1 día')
+      .setValue('comprar_x2')
+      .setEmoji('⚡'),
+    new StringSelectOptionBuilder()
+      .setLabel('Canales Ocultos (5,000 XP)')
+      .setDescription('Acceso a canales ocultos por 1 día')
+      .setValue('comprar_ocultos')
+      .setEmoji('👁️'),
+    // 🎁 NUEVO ÍTEM AGREGADO AQUÍ:
+    new StringSelectOptionBuilder()
+      .setLabel('Caja Sorpresa (2,000 XP)')
+      .setDescription('Probá tu suerte y ganá de 100 a 10,000 XP')
+      .setValue('comprar_caja')
+      .setEmoji('🎁')
+  );
+  
     const fila = new ActionRowBuilder().addComponents(menuSelec);
 
     await interaction.reply({ embeds: [tiendaEmbed], components: [fila] });
@@ -385,6 +395,62 @@ client.on('interactionCreate', async (interaction) => {
 
         await interaction.editReply(`👁️ **¡Compra exitosa!** Le compraste a Zeus el acceso a **Canales Ocultos** por **5,000 XP**. Tenés 24 horas para curosear todo > < :v!`);
       }
+
+      
+      // 👇 JUSTO AQUI EN LA LINEA 394 PEGAS EL BLOQUE DE LA CAJA 👇
+      else if (opcion === 'comprar_caja') {
+        const PRECIO = 2000;
+        if (userXpData.xp < PRECIO) {
+          await interaction.editReply('Puchica maje, no te alcanza para la Caja Sorpresa. Tenés que juntar más XP > < :v');
+          return;
+        }
+
+        userXpData.xp -= PRECIO;
+        await userXpData.save();
+
+        const prob = Math.random() * 100;
+        let premioXP = 0;
+        let mensaje = '';
+        let color = '';
+
+        if (prob <= 20) {
+          premioXP = Math.floor(Math.random() * (500 - 100 + 1)) + 100;
+          mensaje = `💀 **¡Qué mala pata maje!** Abriste la caja y solo hallaste **+${premioXP} XP**. Perdiste la inversión > < :v`;
+          color = '#e74c3c';
+        } else if (prob <= 70) {
+          premioXP = Math.floor(Math.random() * (1900 - 1000 + 1)) + 1000;
+          mensaje = `🟡 **Casi casi...** La caja te dio **+${premioXP} XP**. Casi recuperás lo tuyo.`;
+          color = '#f1c40f';
+        } else if (prob <= 90) {
+          premioXP = Math.floor(Math.random() * (3500 - 2200 + 1)) + 2200;
+          mensaje = `🔥 **¡Buenas ganancias!** Te salieron **+${premioXP} XP** en la caja. ¡Le sacaste ganancia!`;
+          color = '#2ecc71';
+        } else {
+          premioXP = Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000;
+          mensaje = `⚡🎉 **¡¡JACKPOT DEL OLIMPO MAJE!!** 🎉⚡\n\n¡Zeus te bendijo con un premio legendario de **+${premioXP} XP**! > < :v`;
+          color = '#9b59b6';
+        }
+
+        userXpData.xp += premioXP;
+        while (userXpData.xp >= (userXpData.level + 1) * 100) {
+          userXpData.xp -= (userXpData.level + 1) * 100;
+          userXpData.level += 1;
+        }
+        await userXpData.save();
+
+        const cajaEmbed = new EmbedBuilder()
+          .setColor(color)
+          .setTitle('🎁 ¡Caja Sorpresa Abierta!')
+          .setDescription(mensaje)
+          .addFields(
+            { name: '⭐ Nivel Actual', value: `**${userXpData.level}**`, inline: true },
+            { name: '✨ Tu XP total', value: `**${userXpData.xp} XP**`, inline: true }
+          )
+          .setFooter({ text: 'Tienda Oficial • Zeus', iconURL: client.user.displayAvatarURL() });
+
+        await interaction.editReply({ embeds: [cajaEmbed] });
+      }
+      // 👆 AQUI TERMINA EL NUEVO BLOQUE 👆
 
     } catch (err) {
       console.error('Clavo en la tienda:', err);
