@@ -360,16 +360,43 @@ client.on('interactionCreate', async (interaction) => {
         userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
       }
 
+      // 🧮 Función rápida para calcular la XP total acumulada desde el Nivel 1
+      const obtenerXpTotal = (data) => {
+        let total = data.xp;
+        for (let i = 1; i < data.level; i++) {
+          total += (i + 1) * 100;
+        }
+        return total;
+      };
+
+      // 🧮 Función para reconstruir Nivel y XP sobrante después de gastar
+      const recalcularProgreso = (data, nuevaXpTotal) => {
+        let lvl = 1;
+        let xpRestante = nuevaXpTotal;
+        let xpReq = (lvl + 1) * 100;
+
+        while (xpRestante >= xpReq) {
+          xpRestante -= xpReq;
+          lvl++;
+          xpReq = (lvl + 1) * 100;
+        }
+
+        data.level = lvl;
+        data.xp = xpRestante;
+      };
+
       const duracionUnDia = 24 * 60 * 60 * 1000;
+      let xpTotalActual = obtenerXpTotal(userXpData);
 
       if (opcion === 'comprar_x2') {
         const PRECIO = 3000;
-        if (userXpData.xp < PRECIO) {
-          await interaction.editReply('Puchica maje, no te alcanza. Tené en cuenta que cuesta 3,000 XP.');
+        if (xpTotalActual < PRECIO) {
+          await interaction.editReply('Puchica maje, no te alcanza. Tené en cuenta que cuesta 3,000 XP en total.');
           return;
         }
 
-        userXpData.xp -= PRECIO;
+        xpTotalActual -= PRECIO;
+        recalcularProgreso(userXpData, xpTotalActual);
         userXpData.rolX2Hasta = new Date(Date.now() + duracionUnDia);
         await userXpData.save();
 
@@ -380,12 +407,13 @@ client.on('interactionCreate', async (interaction) => {
       } 
       else if (opcion === 'comprar_ocultos') {
         const PRECIO = 5000;
-        if (userXpData.xp < PRECIO) {
-          await interaction.editReply('Puchica maje, no te alcanza. Tené en cuenta que cuesta 5,000 XP.');
+        if (xpTotalActual < PRECIO) {
+          await interaction.editReply('Puchica maje, no te alcanza. Tené en cuenta que cuesta 5,000 XP en total.');
           return;
         }
 
-        userXpData.xp -= PRECIO;
+        xpTotalActual -= PRECIO;
+        recalcularProgreso(userXpData, xpTotalActual);
         userXpData.rolOcultoHasta = new Date(Date.now() + duracionUnDia);
         await userXpData.save();
 
@@ -396,39 +424,24 @@ client.on('interactionCreate', async (interaction) => {
       }
       else if (opcion === 'comprar_caja') {
         const PRECIO = 2000;
-        if (userXpData.xp < PRECIO) {
-          await interaction.editReply('Puchica maje, no te alcanza. Tené en cuenta que la Caja cuesta 2,000 XP.');
+        if (xpTotalActual < PRECIO) {
+          await interaction.editReply('Puchica maje, no te alcanza. Tené en cuenta que la Caja cuesta 2,000 XP acumulada.');
           return;
         }
 
-        // Cobramos los 2,000 XP
-        userXpData.xp -= PRECIO;
+        // Restamos el precio de la XP Total
+        xpTotalActual -= PRECIO;
 
-        // 🎁 Genera una cantidad al azar entre 500 y 5,000 XP
+        // Premio al azar entre 500 y 5,000 XP
         const xpGanadaAzar = Math.floor(Math.random() * (5000 - 500 + 1)) + 500;
+        xpTotalActual += xpGanadaAzar;
 
-        // Le sumamos la recompensa y chequeamos si sube de nivel
-        userXpData.xp += xpGanadaAzar;
-        
-        let subioNivel = false;
-        let xpNecesaria = (userXpData.level + 1) * 100;
-        while (userXpData.xp >= xpNecesaria) {
-          userXpData.xp -= xpNecesaria;
-          userXpData.level += 1;
-          xpNecesaria = (userXpData.level + 1) * 100;
-          subioNivel = true;
-        }
-
+        // Reconstruimos el nivel y la XP de la BD con el nuevo total
+        recalcularProgreso(userXpData, xpTotalActual);
         await userXpData.save();
 
-        let msjRespuesta = `🎁 **¡Abriste la Caja de Regalo de Zeus!**\n\nZeus te ha bendecido con **+${xpGanadaAzar} XP** al azar 🔥`;
-        if (subioNivel) {
-          msjRespuesta += `\n\n⭐ **¡Puchica! Con ese premio subiste al nivel ${userXpData.level}!**`;
-        }
-
-        await interaction.editReply(msjRespuesta);
+        await interaction.editReply(`🎁 **¡Abriste la Caja de Regalo de Zeus!**\n\nZeus te ha bendecido con **+${xpGanadaAzar} XP** al azar 🔥\nQuedaste en **Nivel ${userXpData.level}** (${userXpData.xp}/${(userXpData.level + 1) * 100} XP).`);
       }
-      
     } catch (err) {
       console.error('Clavo en la tienda:', err);
       await interaction.editReply('Puchica, algo trono al intentar hacer la compra.');
