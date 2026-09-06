@@ -10,7 +10,8 @@ const {
   EmbedBuilder, 
   ActionRowBuilder, 
   StringSelectMenuBuilder, 
-  StringSelectOptionBuilder
+  StringSelectOptionBuilder,
+  ApplicationCommandOptionType
 } = require('discord.js');
 const mongoose = require('mongoose');
 require('dotenv').config();
