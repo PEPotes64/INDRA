@@ -14,7 +14,8 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers
   ]
 });
 
@@ -48,6 +49,13 @@ const nivelesRoles = [
   { min: 10, max: 14, id: '1359365393084448829' },
   { min: 5, max: 9, id: '1359364859333967882' },
   { min: 1, max: 4, id: '1359363942727815269' }
+];
+
+// IDs de los roles de los primeros 3 lugares
+const rolesTop3 = [
+  '1541902325784912064', // 1er lugar
+  '1541902188895412405', // 2do lugar
+  '1541899453521330216'  // 3er lugar
 ];
 
 mongoose.connect(process.env.MONGODB_URI)
@@ -108,10 +116,16 @@ client.once('ready', async () => {
     ]
   };
 
+  const dataTop = {
+    name: 'top',
+    description: 'Muestra el Top 10 de majes con más XP en el servidor',
+  };
+
   try {
     await client.application.commands.create(dataAddXp);
     await client.application.commands.create(dataQuitarXp);
     await client.application.commands.create(dataVerXp);
+    await client.application.commands.create(dataTop);
     console.log('Comandos listos compa > < :v');
   } catch (error) {
     console.error('Error con los comandos:', error);
@@ -136,6 +150,47 @@ async function checkearRoles(member, nivelActual, guild) {
     }
   } catch (err) {
     console.error("Clavo intentando actualizar el rol del maje:", err);
+  }
+}
+
+// Funcion para actualizar y rotar los roles del Top 3
+async function actualizarRolesTop(guild) {
+  try {
+    const topUsers = await UserXP.find({ guildId: guild.id })
+      .sort({ level: -1, xp: -1 })
+      .limit(3);
+
+    // 1. Quitamos los roles de top a quienes ya no pertenecen a ese puesto
+    for (let i = 0; i < rolesTop3.length; i++) {
+      const roleId = rolesTop3[i];
+      const role = guild.roles.cache.get(roleId);
+      const topUserInIndex = topUsers[i] ? topUsers[i].userId : null;
+
+      if (role) {
+        for (const [memberId, member] of role.members) {
+          if (memberId !== topUserInIndex) {
+            await member.roles.remove(roleId).catch(() => {});
+          }
+        }
+      }
+    }
+
+    // 2. Le ponemos el rol exacto a los top 3 actuales
+    for (let i = 0; i < topUsers.length; i++) {
+      const u = topUsers[i];
+      const roleId = rolesTop3[i];
+      if (!roleId) continue;
+
+      const member = await guild.members.fetch(u.userId).catch(() => null);
+      if (member) {
+        const roleObj = guild.roles.cache.get(roleId);
+        if (roleObj && !member.roles.cache.has(roleId)) {
+          await member.roles.add(roleObj).catch(() => {});
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Clavo actualizando roles del Top 3:', err);
   }
 }
 
@@ -184,6 +239,7 @@ client.on('messageCreate', async (message) => {
     }
 
     await userXpData.save();
+    await actualizarRolesTop(message.guild);
 
     if (subioNivel) {
       const levelEmbed = new EmbedBuilder()
@@ -234,6 +290,7 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       await userXpData.save();
+      await actualizarRolesTop(interaction.guild);
 
       const adminEmbed = new EmbedBuilder()
         .setColor('#ffd700')
@@ -286,6 +343,7 @@ client.on('interactionCreate', async (interaction) => {
       if (userXpData.xp < 0) userXpData.xp = 0;
 
       await userXpData.save();
+      await actualizarRolesTop(interaction.guild);
 
       const adminEmbed = new EmbedBuilder()
         .setColor('#ff4747')
@@ -314,7 +372,6 @@ client.on('interactionCreate', async (interaction) => {
   if (interaction.commandName === 'xp') {
     await interaction.deferReply();
 
-    // Si especificó un usuario en el parámetro usa ese, si no usa al autor del comando
     const targetUser = interaction.options.getUser('usuario') || interaction.user;
     const guildId = interaction.guild.id;
     const userId = targetUser.id;
@@ -344,6 +401,49 @@ client.on('interactionCreate', async (interaction) => {
     } catch (error) {
       console.error('Clavo consultando la XP:', error);
       await interaction.editReply('Puchica algo trono feo al intentar ver la XP > < :v');
+    }
+  }
+
+  if (interaction.commandName === 'top') {
+    await interaction.deferReply();
+
+    const guildId = interaction.guild.id;
+
+    try {
+      await actualizarRolesTop(interaction.guild);
+
+      const topUsers = await UserXP.find({ guildId })
+        .sort({ level: -1, xp: -1 })
+        .limit(10);
+
+      if (!topUsers || topUsers.length === 0) {
+        await interaction.editReply('Aún no hay nadie registrado en la tabla de clasificación > < :v');
+        return;
+      }
+
+      const medallas = ['🥇', '🥈', '🥉'];
+      let descripcionTop = '';
+
+      for (let i = 0; i < topUsers.length; i++) {
+        const u = topUsers[i];
+        const medalla = medallas[i] || `**#${i + 1}**`;
+        const maxXP = (u.level + 1) * 100;
+        
+        descripcionTop += `${medalla} <@${u.userId}> — **Nivel ${u.level}** (${u.xp}/${maxXP} XP)\n`;
+      }
+
+      const topEmbed = new EmbedBuilder()
+        .setColor('#f59e0b')
+        .setTitle('🏆 Leaderboard — Top 10 del Servidor')
+        .setThumbnail(interaction.guild.iconURL({ dynamic: true }) || client.user.displayAvatarURL())
+        .setDescription(descripcionTop)
+        .setFooter({ text: 'Tabla de Clasificación • Zeus', iconURL: client.user.displayAvatarURL() });
+
+      await interaction.editReply({ embeds: [topEmbed] });
+
+    } catch (error) {
+      console.error('Clavo en el comando top:', error);
+      await interaction.editReply('Puchica algo trono feo al sacar el top de majes > < :v');
     }
   }
 });
