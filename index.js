@@ -4,7 +4,15 @@ http.createServer((req, res) => {
   res.end('Zeus ta vivo y al centavo maje! > < :v');
 }).listen(process.env.PORT || 3000);
 
-const { Client, GatewayIntentBits, EmbedBuilder, ApplicationCommandOptionType } = require('discord.js');
+const { 
+  Client, 
+  GatewayIntentBits, 
+  EmbedBuilder, 
+  ApplicationCommandOptionType,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
+  ActionRowBuilder
+} = require('discord.js');
 const mongoose = require('mongoose');
 require('dotenv').config();
 
@@ -19,9 +27,10 @@ const client = new Client({
   ]
 });
 
-// 🚀 IDs de los roles de multiplicadores de XP Maje:
-const ROL_XP_X4 = '1545949309118316615'; // Poné aquí el ID de tu rol x4 en la línea 22
-const ROL_XP_X2 = '1545950431908470865'; // Rol x2 de XP
+// 🚀 IDs de los roles de multiplicadores y tienda
+const ROL_XP_X4 = '1234567890123456789'; // ID de tu rol x4
+const ROL_XP_X2 = '1545950431908470865'; // Rol x2 de XP (Precio: 3000 XP)
+const ROL_OCULTO = '1545963099788410950'; // Rol de canales ocultos (Precio: 5000 XP)
 
 const nivelesRoles = [
   { min: 1000, max: 99999, id: '1545889068963860480' },
@@ -55,11 +64,10 @@ const nivelesRoles = [
   { min: 1, max: 4, id: '1359363942727815269' }
 ];
 
-// IDs de los roles de los primeros 3 lugares
 const rolesTop3 = [
-  '1541902325784912064', // 1er lugar
-  '1541902188895412405', // 2do lugar
-  '1541899453521330216'  // 3er lugar
+  '1541902325784912064',
+  '1541902188895412405',
+  '1541899453521330216'
 ];
 
 mongoose.connect(process.env.MONGODB_URI)
@@ -73,56 +81,36 @@ client.once('ready', async () => {
     name: 'añadir-xp',
     description: 'Añade XP a un maje',
     options: [
-      {
-        name: 'usuario',
-        type: ApplicationCommandOptionType.User,
-        description: 'El chavo al q le daras XP',
-        required: true,
-      },
-      {
-        name: 'cant',
-        type: ApplicationCommandOptionType.Integer,
-        description: 'Cuantos puntos le vas a dar',
-        required: true,
-      }
+      { name: 'usuario', type: ApplicationCommandOptionType.User, description: 'El chavo', required: true },
+      { name: 'cant', type: ApplicationCommandOptionType.Integer, description: 'XP a dar', required: true }
     ]
   };
 
   const dataQuitarXp = {
     name: 'quitar-xp',
-    description: 'Le quita XP a un maje y le ajusta el nivel',
+    description: 'Le quita XP a un maje',
     options: [
-      {
-        name: 'usuario',
-        type: ApplicationCommandOptionType.User,
-        description: 'El chavo al q le quitaras XP',
-        required: true,
-      },
-      {
-        name: 'cant',
-        type: ApplicationCommandOptionType.Integer,
-        description: 'Cuantos puntos le vas a quitar',
-        required: true,
-      }
+      { name: 'usuario', type: ApplicationCommandOptionType.User, description: 'El chavo', required: true },
+      { name: 'cant', type: ApplicationCommandOptionType.Integer, description: 'XP a quitar', required: true }
     ]
   };
 
   const dataVerXp = {
     name: 'xp',
-    description: 'Muestra tu nivel y XP actual o la de otro usuario',
+    description: 'Muestra tu nivel y XP actual',
     options: [
-      {
-        name: 'usuario',
-        type: ApplicationCommandOptionType.User,
-        description: 'El chavo del que quieres ver la XP (opcional)',
-        required: false,
-      }
+      { name: 'usuario', type: ApplicationCommandOptionType.User, description: 'El chavo (opcional)', required: false }
     ]
   };
 
   const dataTop = {
     name: 'top',
-    description: 'Muestra el Top 10 de majes con más XP en el servidor',
+    description: 'Muestra el Top 10 de majes con más XP',
+  };
+
+  const dataComprar = {
+    name: 'comprar',
+    description: 'Abre la tienda de Zeus para comprar bendiciones temporales',
   };
 
   try {
@@ -130,10 +118,48 @@ client.once('ready', async () => {
     await client.application.commands.create(dataQuitarXp);
     await client.application.commands.create(dataVerXp);
     await client.application.commands.create(dataTop);
+    await client.application.commands.create(dataComprar);
     console.log('Comandos listos compa > < :v');
   } catch (error) {
     console.error('Error con los comandos:', error);
   }
+
+  // 🕒 REVISIÓN CADA MINUTO PARA QUITAR ROLES EXPIRADOS (24 Horas)
+  setInterval(async () => {
+    try {
+      const ahora = new Date();
+      
+      // Revisa expiración de XP x2
+      const usuariosX2Expirados = await UserXP.find({ rolX2Hasta: { $lte: ahora } });
+      for (const u of usuariosX2Expirados) {
+        const guild = client.guilds.cache.get(u.guildId);
+        if (guild) {
+          const member = await guild.members.fetch(u.userId).catch(() => null);
+          if (member && member.roles.cache.has(ROL_XP_X2)) {
+            await member.roles.remove(ROL_XP_X2).catch(() => {});
+          }
+        }
+        u.rolX2Hasta = null;
+        await u.save();
+      }
+
+      // Revisa expiración de Canales Ocultos
+      const usuariosOcultosExpirados = await UserXP.find({ rolOcultoHasta: { $lte: ahora } });
+      for (const u of usuariosOcultosExpirados) {
+        const guild = client.guilds.cache.get(u.guildId);
+        if (guild) {
+          const member = await guild.members.fetch(u.userId).catch(() => null);
+          if (member && member.roles.cache.has(ROL_OCULTO)) {
+            await member.roles.remove(ROL_OCULTO).catch(() => {});
+          }
+        }
+        u.rolOcultoHasta = null;
+        await u.save();
+      }
+    } catch (err) {
+      console.error('Clavo chequeando expiraciones de roles:', err);
+    }
+  }, 60000); 
 });
 
 async function checkearRoles(member, nivelActual, guild) {
@@ -157,14 +183,12 @@ async function checkearRoles(member, nivelActual, guild) {
   }
 }
 
-// Funcion para actualizar y rotar los roles del Top 3
 async function actualizarRolesTop(guild) {
   try {
     const topUsers = await UserXP.find({ guildId: guild.id })
       .sort({ level: -1, xp: -1 })
       .limit(3);
 
-    // 1. Quitamos los roles de top a quienes ya no pertenecen a ese puesto
     for (let i = 0; i < rolesTop3.length; i++) {
       const roleId = rolesTop3[i];
       const role = guild.roles.cache.get(roleId);
@@ -179,7 +203,6 @@ async function actualizarRolesTop(guild) {
       }
     }
 
-    // 2. Le ponemos el rol exacto a los top 3 actuales
     for (let i = 0; i < topUsers.length; i++) {
       const u = topUsers[i];
       const roleId = rolesTop3[i];
@@ -210,13 +233,9 @@ client.on('messageCreate', async (message) => {
     const attachment = message.attachments.first();
     const tipo = attachment.contentType || '';
 
-    if (tipo.startsWith('image/')) {
-      xpGanada = 3;
-    } else if (tipo.startsWith('video/')) {
-      xpGanada = 4;
-    } else if (tipo.startsWith('audio/')) {
-      xpGanada = 2;
-    }
+    if (tipo.startsWith('image/')) xpGanada = 3;
+    else if (tipo.startsWith('video/')) xpGanada = 4;
+    else if (tipo.startsWith('audio/')) xpGanada = 2;
   }
   else if (message.content.includes('giphy.com') || message.content.includes('tenor.com') || message.embeds.some(e => e.type === 'gifv')) {
     xpGanada = 2;
@@ -225,7 +244,6 @@ client.on('messageCreate', async (message) => {
     xpGanada = 1 + (message.content.match(/<a?:\w+:\d+>/g) || []).length;
   }
 
-  // ⚡ VERIFICAMOS MULTIPLICADORES DE ROL (XP X4 O XP X2)
   if (message.member) {
     if (message.member.roles.cache.has(ROL_XP_X4)) {
       xpGanada = xpGanada * 4;
@@ -278,11 +296,108 @@ client.on('messageCreate', async (message) => {
 });
 
 client.on('interactionCreate', async (interaction) => {
+  // 🛒 COMANDO /COMPRAR
+  if (interaction.isChatInputCommand() && interaction.commandName === 'comprar') {
+    const tiendaEmbed = new EmbedBuilder()
+      .setColor('#10b981')
+      .setTitle('🛒 Tienda de Bendiciones de Zeus')
+      .setDescription('Gastá tu XP acumulada para obtener ventajas temporales por 1 día 🔥')
+      .addFields(
+        { 
+          name: '1️⃣ Rol XP X2 (⚡ 3,000 XP)', 
+          value: 'Zeus te bendecirá dándote **XP X2** a cambio de una inversión por 1 día.' 
+        },
+        { 
+          name: '2️⃣ Canales Ocultos (👁️ 5,000 XP)', 
+          value: 'Zeus te dejará ver **canales ocultos** por 1 día.' 
+        }
+      )
+      .setFooter({ text: 'Tienda Oficial • Zeus', iconURL: client.user.displayAvatarURL() });
+
+    const menuSelec = new StringSelectMenuBuilder()
+      .setCustomId('tienda_menu')
+      .setPlaceholder('Elegí un producto para comprar...')
+      .addOptions(
+        new StringSelectMenuOptionBuilder()
+          .setLabel('Rol XP X2 (3,000 XP)')
+          .setDescription('Duplica tu XP ganada por 1 día')
+          .setValue('comprar_x2')
+          .setEmoji('⚡'),
+        new StringSelectMenuOptionBuilder()
+          .setLabel('Canales Ocultos (5,000 XP)')
+          .setDescription('Acceso a canales ocultos por 1 día')
+          .setValue('comprar_ocultos')
+          .setEmoji('👁️')
+      );
+
+    const fila = new ActionRowBuilder().addComponents(menuSelec);
+
+    await interaction.reply({ embeds: [tiendaEmbed], components: [fila] });
+    return;
+  }
+
+  // 📩 PROCESO DE COMPRA DEL MENU DESPLEGABLE
+  if (interaction.isStringSelectMenu() && interaction.customId === 'tienda_menu') {
+    await interaction.deferReply({ ephemeral: true });
+
+    const opcion = interaction.values[0];
+    const userId = interaction.user.id;
+    const guildId = interaction.guild.id;
+
+    try {
+      let userXpData = await UserXP.findOne({ userId, guildId });
+      if (!userXpData) {
+        userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
+      }
+
+      const duracionUnDia = 24 * 60 * 60 * 1000; // 24 Horas en milisegundos
+
+      if (opcion === 'comprar_x2') {
+        const PRECIO = 3000;
+        if (userXpData.xp < PRECIO) {
+          await interaction.editReply(`Puchica maje, no te alcanza. Tenés **${userXpData.xp} XP** y el Rol X2 cuesta **${PRECIO} XP** > < :v`);
+          return;
+        }
+
+        userXpData.xp -= PRECIO;
+        userXpData.rolX2Hasta = new Date(Date.now() + duracionUnDia);
+        await userXpData.save();
+
+        const rolObj = interaction.guild.roles.cache.get(ROL_XP_X2);
+        if (rolObj) await interaction.member.roles.add(rolObj);
+
+        await interaction.editReply(`🔥 **¡Compra exitosa!** Le compraste a Zeus el **Rol XP X2** por **3,000 XP**. Disfrutá tu multiplicador por las próximas 24 horas > < :v!`);
+      }
+
+      else if (opcion === 'comprar_ocultos') {
+        const PRECIO = 5000;
+        if (userXpData.xp < PRECIO) {
+          await interaction.editReply(`Puchica maje, no te alcanza. Tenés **${userXpData.xp} XP** y el acceso cuesta **${PRECIO} XP** > < :v`);
+          return;
+        }
+
+        userXpData.xp -= PRECIO;
+        userXpData.rolOcultoHasta = new Date(Date.now() + duracionUnDia);
+        await userXpData.save();
+
+        const rolObj = interaction.guild.roles.cache.get(ROL_OCULTO);
+        if (rolObj) await interaction.member.roles.add(rolObj);
+
+        await interaction.editReply(`👁️ **¡Compra exitosa!** Le compraste a Zeus el acceso a **Canales Ocultos** por **5,000 XP**. Tenés 24 horas para curosear todo > < :v!`);
+      }
+
+    } catch (err) {
+      console.error('Clavo en la tienda:', err);
+      await interaction.editReply('Puchica, algo trono al intentar hacer la compra en la tienda > < :v');
+    }
+    return;
+  }
+
+  // OTROS COMANDOS (/AÑADIR-XP, /QUITAR-XP, /XP, /TOP)
   if (!interaction.isChatInputCommand()) return;
 
   if (interaction.commandName === 'añadir-xp') {
     await interaction.deferReply();
-
     const targetUser = interaction.options.getUser('usuario');
     const cantidad = interaction.options.getInteger('cant');
     const guildId = interaction.guild.id;
@@ -290,13 +405,9 @@ client.on('interactionCreate', async (interaction) => {
 
     try {
       let userXpData = await UserXP.findOne({ userId, guildId });
-
-      if (!userXpData) {
-        userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
-      }
+      if (!userXpData) userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
 
       userXpData.xp += cantidad;
-
       while (userXpData.xp >= (userXpData.level + 1) * 100) {
         userXpData.xp -= (userXpData.level + 1) * 100;
         userXpData.level += 1;
@@ -317,12 +428,8 @@ client.on('interactionCreate', async (interaction) => {
         .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
 
       await interaction.editReply({ embeds: [adminEmbed] });
-      
       const member = interaction.guild.members.cache.get(userId);
-      if(member) {
-        await checkearRoles(member, userXpData.level, interaction.guild);
-      }
-      
+      if(member) await checkearRoles(member, userXpData.level, interaction.guild);
     } catch (error) {
       console.error('Clavo en añadir-xp:', error);
       await interaction.editReply('Puchica algo trono feo con la base de datos > < :v');
@@ -331,7 +438,6 @@ client.on('interactionCreate', async (interaction) => {
 
   if (interaction.commandName === 'quitar-xp') {
     await interaction.deferReply();
-
     const targetUser = interaction.options.getUser('usuario');
     const cantidad = interaction.options.getInteger('cant');
     const guildId = interaction.guild.id;
@@ -339,14 +445,12 @@ client.on('interactionCreate', async (interaction) => {
 
     try {
       let userXpData = await UserXP.findOne({ userId, guildId });
-
       if (!userXpData) {
         await interaction.editReply('Puchica, ese maje ni siquiera tiene registro de XP todavía > < :v');
         return;
       }
 
       userXpData.xp -= cantidad;
-
       while (userXpData.xp < 0 && userXpData.level > 1) {
         userXpData.level -= 1;
         let xpAnterior = (userXpData.level + 1) * 100;
@@ -370,12 +474,8 @@ client.on('interactionCreate', async (interaction) => {
         .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
 
       await interaction.editReply({ embeds: [adminEmbed] });
-      
       const member = interaction.guild.members.cache.get(userId);
-      if(member) {
-        await checkearRoles(member, userXpData.level, interaction.guild);
-      }
-      
+      if(member) await checkearRoles(member, userXpData.level, interaction.guild);
     } catch (error) {
       console.error('Clavo en quitar-xp:', error);
       await interaction.editReply('Puchica algo trono feo con la base de datos al quitar XP > < :v');
@@ -384,17 +484,13 @@ client.on('interactionCreate', async (interaction) => {
 
   if (interaction.commandName === 'xp') {
     await interaction.deferReply();
-
     const targetUser = interaction.options.getUser('usuario') || interaction.user;
     const guildId = interaction.guild.id;
     const userId = targetUser.id;
 
     try {
       let userXpData = await UserXP.findOne({ userId, guildId });
-
-      if (!userXpData) {
-        userXpData = { xp: 0, level: 1 };
-      }
+      if (!userXpData) userXpData = { xp: 0, level: 1 };
 
       const xpNecesaria = (userXpData.level + 1) * 100;
 
@@ -410,7 +506,6 @@ client.on('interactionCreate', async (interaction) => {
         .setFooter({ text: 'Consulta de XP • Zeus', iconURL: client.user.displayAvatarURL() });
 
       await interaction.editReply({ embeds: [xpEmbed] });
-
     } catch (error) {
       console.error('Clavo consultando la XP:', error);
       await interaction.editReply('Puchica algo trono feo al intentar ver la XP > < :v');
@@ -419,7 +514,6 @@ client.on('interactionCreate', async (interaction) => {
 
   if (interaction.commandName === 'top') {
     await interaction.deferReply();
-
     const guildId = interaction.guild.id;
 
     try {
@@ -442,7 +536,7 @@ client.on('interactionCreate', async (interaction) => {
         const medalla = medallas[i] || `**#${i + 1}**`;
         const maxXP = (u.level + 1) * 100;
         
-        descripcionTop += `${medalla} <@${u.userId}> — **Nivel ${u.level}** (${u.xp}/${maxXP} XP)\n`;
+                descripcionTop += `${medalla} <@${u.userId}> — **Nivel ${u.level}** (${u.xp}/${maxXP} XP)\n`;
       }
 
       const topEmbed = new EmbedBuilder()
@@ -453,7 +547,6 @@ client.on('interactionCreate', async (interaction) => {
         .setFooter({ text: 'Tabla de Clasificación • Zeus', iconURL: client.user.displayAvatarURL() });
 
       await interaction.editReply({ embeds: [topEmbed] });
-
     } catch (error) {
       console.error('Clavo en el comando top:', error);
       await interaction.editReply('Puchica algo trono feo al sacar el top de majes > < :v');
@@ -462,4 +555,3 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
-            
