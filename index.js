@@ -268,6 +268,291 @@ const verificarCooldown = (ultimaFecha) => {
 };
 
 // --- MANEJADOR DE INTERACCIONES (COMANDOS SLASH) ---
+// --- RENDERIZADOR CANVAS (TARJETA CRÍTICA) ---
+async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUrl, loBueno, loMalo, resumen, fondoUrl, positivoPct, stats, fuenteNombre }) {
+    const width = 1000;
+    const height = 600;
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+
+    const fontFamily = fuenteNombre ? `"${fuenteNombre}", sans-serif` : 'sans-serif';
+    const posFinal = Math.max(0, Math.min(100, positivoPct));
+    const negativoPct = Math.max(0, Math.min(100, 100 - posFinal));
+
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+
+    // A. Fondo
+    if (fondoUrl) {
+        try {
+            const resBg = await fetch(fondoUrl);
+            const bufBg = Buffer.from(await resBg.arrayBuffer());
+            const fondoImg = await loadImage(bufBg);
+            ctx.drawImage(fondoImg, 0, 0, width, height);
+        } catch (e) {
+            ctx.fillStyle = '#121216';
+            ctx.fillRect(0, 0, width, height);
+        }
+    } else {
+        ctx.fillStyle = '#121216';
+        ctx.fillRect(0, 0, width, height);
+    }
+
+    // Capa translúcida general
+    ctx.fillStyle = 'rgba(18, 18, 24, 0.85)';
+    ctx.roundRect(20, 20, width - 40, height - 40, 20);
+    ctx.fill();
+
+    // B. DIBUJO DEL ARTISTA
+    try {
+        const resDibujo = await fetch(dibujoUrl);
+        const bufferDibujo = Buffer.from(await resDibujo.arrayBuffer());
+        const dibujoImg = await loadImage(bufferDibujo);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(40, 40, 400, 370, 15);
+        ctx.clip();
+        ctx.drawImage(dibujoImg, 40, 40, 400, 370);
+        ctx.restore();
+    } catch (err) {
+        console.error("Error al cargar dibujo:", err);
+    }
+
+    // C. BARRAS DE PORCENTAJE
+    const barX = 40, barY = 430, barWidth = 400, barHeight = 20;
+
+    ctx.font = `bold 15px ${fontFamily}`;
+    ctx.fillStyle = '#4CAF50';
+    ctx.fillText(`🟢 Positivo: ${posFinal}%`, barX, barY);
+
+    ctx.fillStyle = '#1E232A';
+    ctx.roundRect(barX, barY + 6, barWidth, barHeight, 8);
+    ctx.fill();
+
+    if (posFinal > 0) {
+        const wVerde = (barWidth * posFinal) / 100;
+        ctx.fillStyle = '#4CAF50';
+        ctx.roundRect(barX, barY + 6, wVerde, barHeight, 8);
+        ctx.fill();
+    }
+
+    ctx.fillStyle = '#FF5252';
+    ctx.fillText(`🔴 Negativo: ${negativoPct}%`, barX, barY + 54);
+
+    ctx.fillStyle = '#1E232A';
+    ctx.roundRect(barX, barY + 60, barWidth, barHeight, 8);
+    ctx.fill();
+
+    if (negativoPct > 0) {
+        const wRojo = (barWidth * negativoPct) / 100;
+        ctx.fillStyle = '#FF5252';
+        ctx.roundRect(barX, barY + 60, wRojo, barHeight, 8);
+        ctx.fill();
+    }
+
+    // D. AVATAR + NOMBRE DEL ARTISTA
+    ctx.fillStyle = '#FFD700';
+    ctx.font = `bold 22px ${fontFamily}`;
+    ctx.fillText(`🎨 ${artistaNombre}`, 470, 75);
+
+    try {
+        if (artistaAvatarUrl) {
+            const resAvatar = await fetch(artistaAvatarUrl);
+            const bufAvatar = Buffer.from(await resAvatar.arrayBuffer());
+            const avatarImg = await loadImage(bufAvatar);
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(920, 70, 35, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.drawImage(avatarImg, 885, 35, 70, 70);
+            ctx.restore();
+        }
+    } catch (e) {
+        console.error("Error avatar:", e);
+    }
+
+    ctx.strokeStyle = '#3A3A4A';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(470, 115);
+    ctx.lineTo(950, 115);
+    ctx.stroke();
+
+    // E. TEXTOS DE LA CRÍTICA
+    const wrapText = (context, label, text, colorLabel, x, startY, maxWidth, lineHeight) => {
+        context.font = `bold 16px ${fontFamily}`;
+        context.fillStyle = colorLabel;
+        context.fillText(label, x, startY);
+
+        context.font = `15px ${fontFamily}`;
+        context.fillStyle = '#E2E2E8';
+
+        const words = (text || '').split(' ');
+        let line = '';
+        let currentY = startY + 20;
+
+        for (let n = 0; n < words.length; n++) {
+            let testLine = line + words[n] + ' ';
+            let metrics = context.measureText(testLine);
+            if (metrics.width > maxWidth && n > 0) {
+                context.fillText(line, x, currentY);
+                line = words[n] + ' ';
+                currentY += lineHeight;
+            } else {
+                line = testLine;
+            }
+        }
+        context.fillText(line, x, currentY);
+        return currentY + 25;
+    };
+
+    let nextY = wrapText(ctx, '🟢 LO FUERTE:', loBueno, '#4CAF50', 470, 145, 480, 20);
+    nextY = wrapText(ctx, '🔴 EL FRENO:', loMalo, '#FF5252', 470, nextY, 480, 20);
+    nextY = wrapText(ctx, '📜 VEREDICTO:', resumen, '#FFB700', 470, nextY, 480, 20);
+
+    // F. STATS INDIVIDUALES (Pinceles, Lineart, etc.)
+    const graphYBase = 530;
+    const graphMaxHeight = 100;
+    const startX = 480;
+    const barGap = 90;
+    const colWidth = 28;
+
+    ctx.fillStyle = '#FFD700';
+    ctx.font = `bold 16px ${fontFamily}`;
+    ctx.fillText('📊 ANÁLISIS DE HABILIDADES:', 470, Math.max(nextY + 10, 330));
+
+    const obtenerColorRango = (porcentaje) => {
+        if (porcentaje < 70) return '#A10E20';
+        if (porcentaje < 80) return '#A00BDB';
+        if (porcentaje < 90) return '#A003FF';
+        return '#FFFFFF';
+    };
+
+    stats.forEach((item, index) => {
+        const x = startX + (index * barGap);
+        const val = Math.max(0, Math.min(100, item.val));
+        const currentBarHeight = (graphMaxHeight * val) / 100;
+        const colorBarra = obtenerColorRango(val);
+
+        ctx.fillStyle = '#1E232A';
+        ctx.beginPath();
+        ctx.roundRect(x, graphYBase - graphMaxHeight, colWidth, graphMaxHeight, 8);
+        ctx.fill();
+
+        if (val > 0) {
+            ctx.fillStyle = colorBarra;
+            ctx.beginPath();
+            ctx.roundRect(x, graphYBase - currentBarHeight, colWidth, currentBarHeight, 8);
+            ctx.fill();
+        }
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = `bold 12px ${fontFamily}`;
+        ctx.fillText(`${val}%`, x - 2, graphYBase - (val > 0 ? currentBarHeight : 0) - 8);
+
+        ctx.fillStyle = '#AAAAAA';
+        ctx.font = `bold 11px ${fontFamily}`;
+        ctx.fillText(item.nombre, x - 10, graphYBase + 20);
+    });
+
+    return canvas.toBuffer('image/png');
+}
+
+// --- CHEQUEO AUTOMÁTICO DE ROLES POR NIVEL ---
+async function checkearRoles(member, nivelActual, guild) {
+    try {
+        const rangoEncontrado = nivelesRoles.find(r => nivelActual >= r.min && nivelActual <= r.max);
+        if (!rangoEncontrado) return;
+
+        const idsDeNiveles = nivelesRoles.map(r => r.id);
+        const rolesAQuitar = member.roles.cache.filter(r => idsDeNiveles.includes(r.id) && r.id !== rangoEncontrado.id);
+
+        if (rolesAQuitar.size > 0) {
+            await member.roles.remove(rolesAQuitar);
+        }
+
+        const rolNuevoObj = guild.roles.cache.get(rangoEncontrado.id);
+        if (rolNuevoObj && !member.roles.cache.has(rolNuevoObj.id)) {
+            await member.roles.add(rolNuevoObj);
+        }
+    } catch (err) {
+        console.error("Clavo intentando actualizar el rol del maje:", err);
+    }
+}
+
+// --- SISTEMA DE GANAR XP POR MENSAJES DE TEXTO, IMÁGENES Y MULTIPLICADORES ---
+client.on('messageCreate', async message => {
+    if (message.author.bot || !message.guild) return;
+
+    const userId = message.author.id;
+    const guildId = message.guild.id;
+
+    let xpGanada = 1;
+
+    if (message.attachments.size > 0) {
+        const attachment = message.attachments.first();
+        const tipo = attachment.contentType || '';
+        if (tipo.startsWith('image/')) xpGanada = 3;
+        else if (tipo.startsWith('video/')) xpGanada = 4;
+        else if (tipo.startsWith('audio/')) xpGanada = 2;
+    } else if (message.content.includes('giphy.com') || message.content.includes('tenor.com')) {
+        xpGanada = 2;
+    } else if (/<a?:[\w]+:\d+>/.test(message.content)) {
+        xpGanada = 1 + (message.content.match(/<a?:[\w]+:\d+>/g) || []).length;
+    }
+
+    if (message.member) {
+        if (message.member.roles.cache.has(ROL_XP_X4)) {
+            xpGanada *= 4;
+        } else if (message.member.roles.cache.has(ROL_XP_X2)) {
+            xpGanada *= 2;
+        }
+    }
+
+    try {
+        let userXpData = await UserXP.findOne({ userId, guildId });
+        if (!userXpData) {
+            userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
+        }
+
+        userXpData.xp += xpGanada;
+        let xpNecesaria = (userXpData.level + 1) * 100;
+        let subioNivel = false;
+
+        while (userXpData.xp >= xpNecesaria) {
+            userXpData.xp -= xpNecesaria;
+            userXpData.level += 1;
+            xpNecesaria = (userXpData.level + 1) * 100;
+            subioNivel = true;
+        }
+
+        await userXpData.save();
+
+        if (subioNivel) {
+            const levelEmbed = new EmbedBuilder()
+                .setColor('#00ffaa')
+                .setAuthor({ name: '¡Subida de Nivel!', iconURL: message.author.displayAvatarURL() })
+                .setThumbnail(message.author.displayAvatarURL({ dynamic: true, size: 512 }))
+                .setDescription(`<@${userId}> Has sido ayudado por Zeus, subiste de nivel 🔥`)
+                .addFields(
+                    { name: '⭐ Tu Nuevo nivel es:', value: `**${userXpData.level}**`, inline: true },
+                    { name: '✨ Esta es tu XP:', value: `**${userXpData.xp} /${(userXpData.level + 1) * 100}**`, inline: true }
+                )
+                .setFooter({ text: 'Sistema de XP • Zeus', iconURL: client.user.displayAvatarURL() });
+
+            await message.channel.send({ embeds: [levelEmbed] });
+        }
+
+        if (message.member) {
+            await checkearRoles(message.member, userXpData.level, message.guild);
+        }
+    } catch (error) {
+        console.error("Clavo con la XP:", error);
+    }
+});
+                
 client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
