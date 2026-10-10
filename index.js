@@ -14,11 +14,11 @@ const {
     AttachmentBuilder
 } = require('discord.js');
 const mongoose = require('mongoose');
-const { createCanvas, loadImage, GlobalFonts } = require('@napi-rs/canvas');
+const { createCanvas, loadImage } = require('@napi-rs/canvas');
 const path = require('path');
 require('dotenv').config();
 
-const UserXP = require('./UserXP.js'); // Asegúrate que en UserXP.js agregaste: cartelesComprados, cartelEquipado, fuentesCompradas, fuenteEquipada
+const UserXP = require('./UserXP.js');
 
 const client = new Client({
     intents: [
@@ -29,22 +29,8 @@ const client = new Client({
     ]
 });
 
-// Roles de XP
-const ROL_XP_X4 = '123456789012345678';
-const ROL_XP_X2 = '1545950431908470865';
-const ROL_OCULTO = '1545963099788410950';
-
-const nivelesRoles = [
-    { min: 1000, max: 99999, id: '1545889068961861480' },
-    // ... tus otros rangos de niveles ...
-    { min: 0, max: 0, id: '1359363942727815260' }
-];
-
-const rolesTop3 = [
-    '1541902325784912064',
-    '1541902188895412405',
-    '1541899453521330216'
-];
+// TU ID EXCLUSIVA PARA /CRITICA Y /SETBG
+const PEPO_ID = '1259006426978713620';
 
 mongoose.connect(process.env.MONGO_URI || process.env.MONGODB_URI)
     .then(() => console.log('Base de datos conectada al 100 > < :v'))
@@ -84,19 +70,34 @@ const dataTop = {
 
 const dataComprar = {
     name: 'comprar',
-    description: 'Abre la tienda de Zeus para comprar bendiciones temporales y cosméticos para #semanal'
+    description: 'Abre la tienda de Zeus para comprar cosméticos de #semanal'
 };
 
-// 🎨 NUEVO COMANDO SLASH: /critica
+const dataPerfil = {
+    name: 'perfil',
+    description: 'Abre tu armario para elegir y equipar tus fondos y fuentes guardadas'
+};
+
 const dataCritica = {
     name: 'critica',
-    description: 'Genera la tarjeta gráfica de evaluación semanal para un artista',
+    description: 'Genera la tarjeta gráfica de evaluación semanal para un artista (Exclusivo Pepo)',
     options: [
         { name: 'artista', type: ApplicationCommandOptionType.User, description: 'El artista a evaluar', required: true },
         { name: 'foto', type: ApplicationCommandOptionType.Attachment, description: 'El dibujo o imagen a criticar', required: true },
         { name: 'lo_bueno', type: ApplicationCommandOptionType.String, description: 'Aspectos positivos / Lo fuerte', required: true },
         { name: 'lo_malo', type: ApplicationCommandOptionType.String, description: 'Aspectos a corregir / El freno', required: true },
         { name: 'resumen', type: ApplicationCommandOptionType.String, description: 'Veredicto final de Pepo', required: true }
+    ]
+};
+
+const dataSetBg = {
+    name: 'setbg',
+    description: 'Registra un nuevo fondo para la tienda de Zeus (Exclusivo Pepo)',
+    options: [
+        { name: 'nombre_id', type: ApplicationCommandOptionType.String, description: 'ID o nombre corto del fondo (ej: cartel_neon)', required: true },
+        { name: 'imagen', type: ApplicationCommandOptionType.Attachment, description: 'La imagen del fondo/cartel', required: true },
+        { name: 'precio', type: ApplicationCommandOptionType.Integer, description: 'Precio en XP', required: true },
+        { name: 'nivel', type: ApplicationCommandOptionType.Integer, description: 'Nivel mínimo para comprarlo', required: true }
     ]
 };
 
@@ -109,37 +110,35 @@ client.once('ready', async () => {
         await client.application.commands.create(dataVerXp);
         await client.application.commands.create(dataTop);
         await client.application.commands.create(dataComprar);
-        await client.application.commands.create(dataCritica); // Registrar /critica
+        await client.application.commands.create(dataPerfil);
+        await client.application.commands.create(dataCritica);
+        await client.application.commands.create(dataSetBg);
         console.log('Comandos listos compa > < :v');
     } catch (error) {
         console.error('Error con los comandos:', error);
     }
 });
 
-// --- FUNCIÓN HELPER CANVAS PARA GENERAR LA FICHA ---
+// --- FUNCIÓN CANVAS PARA LA FICHA ---
 async function generarTarjetaCritica({ dibujoUrl, artistaNombre, loBueno, loMalo, resumen, cartel, fuente }) {
     const width = 1000;
     const height = 600;
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
 
-    // 1. Cargar Cartel / Fondo
     try {
         const bgPath = path.join(__dirname, 'backgrounds', `${cartel || 'cartel_base'}.png`);
         const fondoImg = await loadImage(bgPath);
         ctx.drawImage(fondoImg, 0, 0, width, height);
     } catch (e) {
-        // Fondo base oscuro
-        ctx.fillStyle = '#18181c';
+        ctx.fillStyle = '#121216';
         ctx.fillRect(0, 0, width, height);
     }
 
-    // 2. Marco Contenedor
-    ctx.fillStyle = 'rgba(20, 20, 28, 0.88)';
+    ctx.fillStyle = 'rgba(18, 18, 24, 0.90)';
     ctx.roundRect(30, 30, width - 60, height - 60, 20);
     ctx.fill();
 
-    // 3. Dibujo del Artista
     try {
         const dibujoImg = await loadImage(dibujoUrl);
         ctx.save();
@@ -152,33 +151,30 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, loBueno, loMalo
         console.error("Error al cargar dibujo:", err);
     }
 
-    // 4. Tipografía y Textos
     const fontName = fuente || 'sans-serif';
     
-    // Titulo
     ctx.fillStyle = '#FFD700';
-    ctx.font = `bold 24px ${fontName}`;
+    ctx.font = `bold 26px ${fontName}`;
     ctx.fillText(`🎨 EVALUACIÓN: @${artistaNombre}`, 480, 85);
 
-    // Separador
     ctx.strokeStyle = '#3A3A4A';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(480, 100);
-    ctx.lineTo(940, 100);
+    ctx.moveTo(480, 105);
+    ctx.lineTo(940, 105);
     ctx.stroke();
 
-    const wrapText = (context, label, text, colorLabel, x, y, maxWidth, lineHeight) => {
-        context.font = `bold 18px ${fontName}`;
+    const wrapText = (context, label, text, colorLabel, x, startY, maxWidth, lineHeight) => {
+        context.font = `bold 20px ${fontName}`;
         context.fillStyle = colorLabel;
-        context.fillText(label, x, y);
+        context.fillText(label, x, startY);
         
-        context.font = `16px ${fontName}`;
-        context.fillStyle = '#FFFFFF';
+        context.font = `18px ${fontName}`;
+        context.fillStyle = '#E2E2E8';
         
         const words = text.split(' ');
         let line = '';
-        let currentY = y + 22;
+        let currentY = startY + 28;
 
         for (let n = 0; n < words.length; n++) {
             let testLine = line + words[n] + ' ';
@@ -192,34 +188,26 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, loBueno, loMalo
             }
         }
         context.fillText(line, x, currentY);
-        return currentY + 15;
+        return currentY + 35;
     };
 
-    // Lo Bueno
-    let nextY = wrapText(ctx, '🟢 LO FUERTE:', loBueno, '#4EAE50', 480, 130, 450, 22);
-
-    // Lo Malo
-    nextY = wrapText(ctx, '🔴 EL FRENO:', loMalo, '#F44336', 480, nextY, 450, 22);
-
-    // Resumen / Veredicto
-    wrapText(ctx, '⚡ VEREDICTO DE PEPO:', resumen, '#FFC107', 480, nextY, 450, 22);
+    let nextY = wrapText(ctx, '🟢 LO FUERTE:', loBueno, '#4EAE50', 480, 140, 450, 26);
+    nextY = wrapText(ctx, '🔴 EL FRENO:', loMalo, '#F44336', 480, nextY, 450, 26);
+    wrapText(ctx, '⚡ VEREDICTO DE PEPO:', resumen, '#FFC107', 480, nextY, 450, 26);
 
     return canvas.toBuffer('image/png');
 }
 
-// --- TIENDA Y COMANDOS INTERACTIVOS ---
+// --- MANEJADOR DE INTERACCIONES ---
 client.on('interactionCreate', async (interaction) => {
     
-    // 1. ABRIR TIENDA CON COMANDO /COMPRAR
+    // 1. ABRIR TIENDA (SOLO COSMÉTICOS)
     if (interaction.isChatInputCommand() && interaction.commandName === 'comprar') {
         const tiendaEmbed = new EmbedBuilder()
             .setColor('#00ffaa')
-            .setTitle('🛒 Tienda de Bendiciones y Cosméticos de Zeus')
-            .setDescription('Gasta tu XP acumulada para obtener ventajas temporales y cosméticos para `#semanal` 🔥')
+            .setTitle('🛒 Tienda de Cosméticos de Zeus')
+            .setDescription('Gasta tu XP acumulada para desbloquear carteles y fuentes personalizadas para `#semanal` 🔥')
             .addFields(
-                { name: '⚡ Rol XP x2 (3,000 XP)', value: 'Duplica tu XP por 1 día.' },
-                { name: '👁️ Canales Ocultos (5,000 XP)', value: 'Acceso a canales ocultos por 1 día.' },
-                { name: '🎁 Caja de Regalo (2,000 XP)', value: 'Proba tu suerte abriendo la caja.' },
                 { name: '🖼️ Cartel Neón (4,000 XP)', value: 'Desbloquea el marco neón para tus fichas.' },
                 { name: '📜 Cartel Pergamino (6,000 XP)', value: 'Desbloquea el estilo antiguo/gótico.' },
                 { name: '✍️ Fuente Gótica (2,500 XP)', value: 'Desbloquea la tipografía de estatus.' }
@@ -230,9 +218,6 @@ client.on('interactionCreate', async (interaction) => {
             .setCustomId('tienda_menu')
             .setPlaceholder('Elegí un producto para comprar...')
             .addOptions([
-                { label: 'Rol XP x2 (3,000 XP)', value: 'comprar_x2', emoji: '⚡' },
-                { label: 'Canales Ocultos (5,000 XP)', value: 'comprar_ocultos', emoji: '👁️' },
-                { label: 'Caja de Regalo (2,000 XP)', value: 'comprar_caja', emoji: '🎁' },
                 { label: 'Cartel Neón (4,000 XP)', value: 'comprar_cartel_neon', emoji: '🖼️' },
                 { label: 'Cartel Pergamino (6,000 XP)', value: 'comprar_cartel_pergamino', emoji: '📜' },
                 { label: 'Fuente Gótica (2,500 XP)', value: 'comprar_fuente_gotica', emoji: '✍️' }
@@ -243,7 +228,7 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // 2. PROCESO DE COMPRA EN EL MENÚ DESPLEGABLE
+    // 2. COMPRAS DE LA TIENDA
     if (interaction.isStringSelectMenu() && interaction.customId === 'tienda_menu') {
         await interaction.deferReply({ ephemeral: true });
         const opcion = interaction.values[0];
@@ -254,10 +239,8 @@ client.on('interactionCreate', async (interaction) => {
             let userXpData = await UserXP.findOne({ userId, guildId });
             if (!userXpData) userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
 
-            // Funciones de XP (obtenerXpTotal / recalcularProgreso)...
-            let xpTotalActual = userXpData.xp + (userXpData.level - 1) * 100; // Lógica resumida de tu script
+            let xpTotalActual = userXpData.xp + (userXpData.level - 1) * 100;
 
-            // Compras de Carteles
             if (opcion === 'comprar_cartel_neon' || opcion === 'comprar_cartel_pergamino') {
                 const precio = opcion === 'comprar_cartel_neon' ? 4000 : 6000;
                 const itemId = opcion === 'comprar_cartel_neon' ? 'cartel_neon' : 'cartel_pergamino';
@@ -277,19 +260,22 @@ client.on('interactionCreate', async (interaction) => {
                 return await interaction.editReply(`🔥 ¡Felicidades! Compraste y equipaste tu **${itemId}** para las fichas de \`#semanal\`.`);
             }
 
-            // Compras de Fuentes
             if (opcion === 'comprar_fuente_gotica') {
                 const precio = 2500;
                 if (xpTotalActual < precio) return await interaction.editReply('Puchica maje, no te alcanza la XP.');
 
                 if (!userXpData.fuentesCompradas) userXpData.fuentesCompradas = ['sans-serif'];
+                if (userXpData.fuentesCompradas.includes('gotica')) {
+                    userXpData.fuenteEquipada = 'gotica';
+                    await userXpData.save();
+                    return await interaction.editReply('¡Ya tenías esta fuente! Se ha **equipado** correctamente.');
+                }
+
                 userXpData.fuentesCompradas.push('gotica');
                 userXpData.fuenteEquipada = 'gotica';
                 await userXpData.save();
                 return await interaction.editReply('✍️ ¡Compraste y equipaste la **Fuente Gótica**!');
             }
-
-            // ... tus otras opciones existentes (comprar_x2, comprar_ocultos, comprar_caja) ...
 
         } catch (err) {
             console.error('Clavo en la tienda:', err);
@@ -298,8 +284,117 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // 3. COMANDO SLASH /CRITICA (EXCLUSIVO PEPO)
+    // 3. COMANDO /PERFIL (ARMARIO PARA ELEGIR FONDOS Y FUENTES)
+    if (interaction.isChatInputCommand() && interaction.commandName === 'perfil') {
+        await interaction.deferReply({ ephemeral: true });
+
+        const userId = interaction.user.id;
+        const guildId = interaction.guild.id;
+
+        let userXpData = await UserXP.findOne({ userId, guildId });
+        if (!userXpData) {
+            return await interaction.editReply('Puchica maje, aún no tenés registro de XP ni compras en Zeus.');
+        }
+
+        const carteles = userXpData.cartelesComprados && userXpData.cartelesComprados.length > 0 ? userXpData.cartelesComprados : ['cartel_base'];
+        const fuentes = userXpData.fuentesCompradas && userXpData.fuentesCompradas.length > 0 ? userXpData.fuentesCompradas : ['sans-serif'];
+
+        const perfilEmbed = new EmbedBuilder()
+            .setColor('#9b59b6')
+            .setTitle(`🎨 Armario de Cosméticos de ${interaction.user.username}`)
+            .setDescription('Elegí cuál de tus fondos y fuentes compradas querés equipar para tus próximas fichas de `#semanal`!')
+            .addFields(
+                { name: '🖼️ Fondo Equipado Actual:', value: `\`${userXpData.cartelEquipado || 'cartel_base'}\``, inline: true },
+                { name: '✍️ Fuente Equipada Actual:', value: `\`${userXpData.fuenteEquipada || 'sans-serif'}\``, inline: true }
+            )
+            .setFooter({ text: 'Zeus - Sistema de Personalización', iconURL: client.user.displayAvatarURL() });
+
+        const opcionesCarteles = carteles.map(c => ({
+            label: `Fondo: ${c}`,
+            value: `equipar_cartel_${c}`,
+            emoji: '🖼️'
+        }));
+
+        const menuCarteles = new StringSelectMenuBuilder()
+            .setCustomId('equipar_cartel_menu')
+            .setPlaceholder('Elegí un fondo para equipar...')
+            .addOptions(opcionesCarteles);
+
+        const opcionesFuentes = fuentes.map(f => ({
+            label: `Fuente: ${f}`,
+            value: `equipar_fuente_${f}`,
+            emoji: '✍️'
+        }));
+
+        const menuFuentes = new StringSelectMenuBuilder()
+            .setCustomId('equipar_fuente_menu')
+            .setPlaceholder('Elegí una fuente para equipar...')
+            .addOptions(opcionesFuentes);
+
+        const filaCarteles = new ActionRowBuilder().addComponents(menuCarteles);
+        const filaFuentes = new ActionRowBuilder().addComponents(menuFuentes);
+
+        await interaction.editReply({
+            embeds: [perfilEmbed],
+            components: [filaCarteles, filaFuentes]
+        });
+        return;
+    }
+
+    // 4. SELECCIÓN DE ARMARIO EN /PERFIL
+    if (interaction.isStringSelectMenu() && (interaction.customId === 'equipar_cartel_menu' || interaction.customId === 'equipar_fuente_menu')) {
+        await interaction.deferReply({ ephemeral: true });
+
+        const seleccion = interaction.values[0];
+        const userId = interaction.user.id;
+        const guildId = interaction.guild.id;
+
+        let userXpData = await UserXP.findOne({ userId, guildId });
+
+        if (interaction.customId === 'equipar_cartel_menu') {
+            const itemElegido = seleccion.replace('equipar_cartel_', '');
+            userXpData.cartelEquipado = itemElegido;
+            await userXpData.save();
+            return await interaction.editReply(`✅ ¡Nítido! Ahora tenés equipado el fondo **${itemElegido}**.`);
+        }
+
+        if (interaction.customId === 'equipar_fuente_menu') {
+            const itemElegido = seleccion.replace('equipar_fuente_', '');
+            userXpData.fuenteEquipada = itemElegido;
+            await userXpData.save();
+            return await interaction.editReply(`✅ ¡Nítido! Ahora tenés equipada la fuente **${itemElegido}**.`);
+        }
+    }
+
+    // 5. COMANDO /SETBG (BLOQUEADO SOLO PARA PEPO)
+    if (interaction.isChatInputCommand() && interaction.commandName === 'setbg') {
+        if (interaction.user.id !== PEPO_ID) {
+            return await interaction.reply({
+                content: '❌ **¡Aguantá el coche, maje!** Este comando solo lo puede usar Pepo.',
+                ephemeral: true
+            });
+        }
+
+        await interaction.deferReply({ ephemeral: true });
+
+        const nombreId = interaction.options.getString('nombre_id');
+        const imagen = interaction.options.getAttachment('imagen');
+        const precio = interaction.options.getInteger('precio');
+        const nivel = interaction.options.getInteger('nivel');
+
+        await interaction.editReply(`✅ ¡Fondo **${nombreId}** subido al servidor!\n💰 Precio: **${precio} XP**\n⭐ Nivel requerido: **Nivel ${nivel}**\n🔗 URL: ${imagen.url}`);
+        return;
+    }
+
+    // 6. COMANDO /CRITICA (BLOQUEADO SOLO PARA PEPO)
     if (interaction.isChatInputCommand() && interaction.commandName === 'critica') {
+        if (interaction.user.id !== PEPO_ID) {
+            return await interaction.reply({
+                content: '❌ **¡Aguantá el coche, maje!** Este comando solo lo puede usar Pepo para las críticas de `#semanal`.',
+                ephemeral: true
+            });
+        }
+
         await interaction.deferReply();
 
         const artista = interaction.options.getUser('artista');
@@ -309,12 +404,10 @@ client.on('interactionCreate', async (interaction) => {
         const resumen = interaction.options.getString('resumen');
 
         try {
-            // Buscar perfil del artista en MongoDB
             let datosArtista = await UserXP.findOne({ userId: artista.id, guildId: interaction.guild.id });
             const cartelUsar = datosArtista?.cartelEquipado || 'cartel_base';
             const fuenteUsar = datosArtista?.fuenteEquipada || 'sans-serif';
 
-            // Generar la imagen Canvas
             const bufferFicha = await generarTarjetaCritica({
                 dibujoUrl: foto.url,
                 artistaNombre: artista.username,
@@ -339,4 +432,4 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.login(process.env.TOKEN || process.env.DISCORD_TOKEN);
-                 
+            
