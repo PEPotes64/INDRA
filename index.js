@@ -201,7 +201,66 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, loBueno, loMalo
 // --- MANEJADOR DE INTERACCIONES ---
 client.on('interactionCreate', async (interaction) => {
     
-    // 1. ABRIR TIENDA (SOLO COSMÉTICOS)
+    // A. COMANDOS DE XP BÁSICOS
+    if (interaction.isChatInputCommand()) {
+        const { commandName } = interaction;
+
+        if (commandName === 'añadir-xp') {
+            await interaction.deferReply();
+            const targetUser = interaction.options.getUser('usuario');
+            const cant = interaction.options.getInteger('cant');
+
+            let userXp = await UserXP.findOne({ userId: targetUser.id, guildId: interaction.guild.id });
+            if (!userXp) userXp = new UserXP({ userId: targetUser.id, guildId: interaction.guild.id, xp: 0, level: 1 });
+
+            userXp.xp += cant;
+            await userXp.save();
+
+            return await interaction.editReply(`⚡ Se le añadieron **${cant} XP** a <@${targetUser.id}>. Nítido!`);
+        }
+
+        if (commandName === 'quitar-xp') {
+            await interaction.deferReply();
+            const targetUser = interaction.options.getUser('usuario');
+            const cant = interaction.options.getInteger('cant');
+
+            let userXp = await UserXP.findOne({ userId: targetUser.id, guildId: interaction.guild.id });
+            if (!userXp) userXp = new UserXP({ userId: targetUser.id, guildId: interaction.guild.id, xp: 0, level: 1 });
+
+            userXp.xp = Math.max(0, userXp.xp - cant);
+            await userXp.save();
+
+            return await interaction.editReply(`✂️ Se le quitaron **${cant} XP** a <@${targetUser.id}>.`);
+        }
+
+        if (commandName === 'xp') {
+            await interaction.deferReply();
+            const targetUser = interaction.options.getUser('usuario') || interaction.user;
+
+            let userXp = await UserXP.findOne({ userId: targetUser.id, guildId: interaction.guild.id });
+            const xp = userXp ? userXp.xp : 0;
+            const lvl = userXp ? userXp.level : 1;
+
+            return await interaction.editReply(`📊 **${targetUser.username}** tiene **${xp} XP** y es **Nivel ${lvl}**.`);
+        }
+
+        if (commandName === 'top') {
+            await interaction.deferReply();
+            const topUsers = await UserXP.find({ guildId: interaction.guild.id }).sort({ xp: -1 }).limit(10);
+
+            if (!topUsers.length) return await interaction.editReply('Aún no hay datos de XP en este servidor.');
+
+            let desc = topUsers.map((u, i) => `**#${i + 1}** <@${u.userId}> - **${u.xp} XP** (Nivel ${u.level})`).join('\n');
+            const embed = new EmbedBuilder()
+                .setTitle('🏆 Top 10 Majes con Más XP')
+                .setColor('#FFD700')
+                .setDescription(desc);
+
+            return await interaction.editReply({ embeds: [embed] });
+        }
+    }
+
+    // 1. ABRIR TIENDA
     if (interaction.isChatInputCommand() && interaction.commandName === 'comprar') {
         const tiendaEmbed = new EmbedBuilder()
             .setColor('#00ffaa')
@@ -284,7 +343,7 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // 3. COMANDO /PERFIL (ARMARIO PARA ELEGIR FONDOS Y FUENTES)
+    // 3. COMANDO /PERFIL (ARMARIO)
     if (interaction.isChatInputCommand() && interaction.commandName === 'perfil') {
         await interaction.deferReply({ ephemeral: true });
 
@@ -297,7 +356,7 @@ client.on('interactionCreate', async (interaction) => {
         }
 
         const carteles = userXpData.cartelesComprados && userXpData.cartelesComprados.length > 0 ? userXpData.cartelesComprados : ['cartel_base'];
-        const fuentes = userXpData.fuentesCompradas && userXpData.fuentesCompradas.length > 0 ? userXpData.fuentesCompradas : ['sans-serif'];
+                const fuentes = userXpData.fuentesCompradas && userXpData.fuentesCompradas.length > 0 ? userXpData.fuentesCompradas : ['sans-serif'];
 
         const perfilEmbed = new EmbedBuilder()
             .setColor('#9b59b6')
@@ -366,7 +425,7 @@ client.on('interactionCreate', async (interaction) => {
         }
     }
 
-    // 5. COMANDO /SETBG (BLOQUEADO SOLO PARA PEPO)
+            // 5. COMANDO /SETBG (BLOQUEADO SOLO PARA PEPO)
     if (interaction.isChatInputCommand() && interaction.commandName === 'setbg') {
         if (interaction.user.id !== PEPO_ID) {
             return await interaction.reply({
@@ -432,4 +491,5 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.login(process.env.TOKEN || process.env.DISCORD_TOKEN);
-            
+
+        
