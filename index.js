@@ -146,13 +146,14 @@ client.once('ready', async () => {
     }
 });
 
-// --- RENDERIZADOR CANVAS ---
+// --- RENDERIZADOR CANVAS (FONDO 100% COMPLETO) ---
 async function generarTarjetaCritica({ dibujoUrl, artistaNombre, loBueno, loMalo, resumen, fondoUrl }) {
     const width = 1000;
     const height = 600;
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
 
+    // 1. Dibujar el fondo cubriendo todo el canvas
     if (fondoUrl) {
         try {
             const fondoImg = await loadImage(fondoUrl);
@@ -166,31 +167,37 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, loBueno, loMalo
         ctx.fillRect(0, 0, width, height);
     }
 
-    ctx.fillStyle = 'rgba(18, 18, 24, 0.90)';
-    ctx.roundRect(30, 30, width - 60, height - 60, 20);
+    // 2. Panel translúcido solo para la zona del texto a la derecha
+    ctx.fillStyle = 'rgba(18, 18, 24, 0.82)';
+    ctx.roundRect(455, 25, 520, 550, 15);
     ctx.fill();
 
+    // 3. Dibujar la imagen/dibujo del artista
     try {
         const dibujoImg = await loadImage(dibujoUrl);
         ctx.save();
         ctx.beginPath();
-        ctx.roundRect(50, 50, 400, 500, 15);
+        ctx.roundRect(30, 30, 400, 540, 15);
         ctx.clip();
-        ctx.drawImage(dibujoImg, 50, 50, 400, 500);
+        ctx.drawImage(dibujoImg, 30, 30, 400, 540);
         ctx.restore();
     } catch (err) {
         console.error("Error al cargar dibujo:", err);
     }
 
+    // 4. Sombra para resaltar los textos perfectamente
+    ctx.shadowColor = 'black';
+    ctx.shadowBlur = 6;
+
     ctx.fillStyle = '#FFD700';
-    ctx.font = 'bold 26px sans-serif';
-    ctx.fillText(`🎨 EVALUACIÓN: @${artistaNombre}`, 480, 85);
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillText(`🎨 EVALUACIÓN: @${artistaNombre}`, 480, 75);
 
     ctx.strokeStyle = '#3A3A4A';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(480, 105);
-    ctx.lineTo(940, 105);
+    ctx.moveTo(480, 95);
+    ctx.lineTo(940, 95);
     ctx.stroke();
 
     const wrapText = (context, label, text, colorLabel, x, startY, maxWidth, lineHeight) => {
@@ -220,9 +227,9 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, loBueno, loMalo
         return currentY + 35;
     };
 
-    let nextY = wrapText(ctx, '🟢 LO FUERTE:', loBueno, '#4EAE50', 480, 140, 450, 26);
-    nextY = wrapText(ctx, '🔴 EL FRENO:', loMalo, '#F44336', 480, nextY, 450, 26);
-    wrapText(ctx, '⚡ VEREDICTO DE PEPO:', resumen, '#FFC107', 480, nextY, 450, 26);
+    let nextY = wrapText(ctx, '🟢 LO FUERTE:', loBueno, '#4EAE50', 480, 130, 470, 26);
+    nextY = wrapText(ctx, '🔴 EL FRENO:', loMalo, '#F44336', 480, nextY, 470, 26);
+    wrapText(ctx, '⚡ VEREDICTO DE PEPO:', resumen, '#FFC107', 480, nextY, 470, 26);
 
     return canvas.toBuffer('image/png');
 }
@@ -430,7 +437,7 @@ client.on('interactionCreate', async (interaction) => {
                     fondoUrl: urlFondoUsar
                 });
 
-                                const attachment = new AttachmentBuilder(bufferFicha, { name: `critica_${artista.username}.png` });
+                const attachment = new AttachmentBuilder(bufferFicha, { name: `critica_${artista.username}.png` });
 
                 await interaction.editReply({
                     content: `🎨 **EVALUACIÓN OFICIAL DE #SEMANAL PARA** <@${artista.id}>`,
@@ -457,7 +464,7 @@ client.on('interactionCreate', async (interaction) => {
             let userXpData = await UserXP.findOne({ userId, guildId });
             if (!userXpData) userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
 
-            let xpTotalActual = userXpData.xp + (userXpData.level - 1) * 100;
+                        let xpTotalActual = userXpData.xp + (userXpData.level - 1) * 100;
 
             if (opcion.startsWith('comprar_bg_')) {
                 const nombreBg = opcion.replace('comprar_bg_', '');
