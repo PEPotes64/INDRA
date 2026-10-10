@@ -145,7 +145,6 @@ client.once('ready', async () => {
     }
 });
 
-// --- RENDERIZADOR CANVAS CON FONDO DESDE MONGO ---
 async function generarTarjetaCritica({ dibujoUrl, artistaNombre, loBueno, loMalo, resumen, fondoUrl }) {
     const width = 1000;
     const height = 600;
@@ -224,159 +223,220 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, loBueno, loMalo
     wrapText(ctx, '⚡ VEREDICTO DE PEPO:', resumen, '#FFC107', 480, nextY, 450, 26);
 
     return canvas.toBuffer('image/png');
+}
+
+client.on('interactionCreate', async (interaction) => {
+    
+    // A. COMANDOS SLASH
+    if (interaction.isChatInputCommand()) {
+        const { commandName } = interaction;
+
+        // /comprar
+        if (commandName === 'comprar') {
+            await interaction.deferReply();
+
+            const fondosGuardados = await Background.find({ guildId: interaction.guild.id });
+
+            const tiendaEmbed = new EmbedBuilder()
+                .setColor('#00ffaa')
+                .setTitle('🛒 Tienda de Zeus & #semanal')
+                .setDescription('Gasta tu XP acumulada para obtener ventajas o cosméticos de la base de datos 🔥')
+                .addFields(
+                    { name: '⚡ Rol XP X2 (3,000 XP)', value: 'Duplica tu XP por 1 día.' },
+                    { name: '👁️ Canales Ocultos (5,000 XP)', value: 'Acceso a canales ocultos por 1 día.' },
+                    { name: '🎁 Caja de Regalo (2,000 XP)', value: 'Premio de XP al azar.' }
+                )
+                .setFooter({ text: 'Tienda Oficial - Zeus', iconURL: client.user.displayAvatarURL() });
+
+            const opcionesMenu = [
+                { label: 'Rol XP X2 (3,000 XP)', description: 'Duplica tu XP por 1 día', value: 'comprar_x2', emoji: '⚡' },
+                { label: 'Canales Ocultos (5,000 XP)', description: 'Acceso por 1 día', value: 'comprar_ocultos', emoji: '👁️' },
+                { label: 'Caja de Regalo (2,000 XP)', description: 'Misteriosa de Zeus', value: 'comprar_caja', emoji: '🎁' }
+            ];
+
+            fondosGuardados.forEach(f => {
+                tiendaEmbed.addFields({
+                    name: `🖼️ Fondo: ${f.nombreId} (${f.precio} XP)`,
+                    value: `Requiere Nivel ${f.nivelMinimo}`
+                });
+                opcionesMenu.push({
+                    label: `Fondo: ${f.nombreId} (${f.precio} XP)`,
+                    description: `Req. Nivel ${f.nivelMinimo}`,
+                    value: `comprar_bg_${f.nombreId}`,
+                    emoji: '🖼️'
+                });
+            });
+
+            const menuSelec = new StringSelectMenuBuilder()
+                .setCustomId('tienda_menu')
+                .setPlaceholder('Elegí un producto para comprar...')
+                .addOptions(opcionesMenu);
+
+            const fila = new ActionRowBuilder().addComponents(menuSelec);
+            await interaction.editReply({ embeds: [tiendaEmbed], components: [fila] });
+            return;
+        }
+
+        // /perfil (ARMARIO)
+        if (commandName === 'perfil') {
+            await interaction.deferReply({ ephemeral: true });
+
+            const userId = interaction.user.id;
+            const guildId = interaction.guild.id;
+
+            let userXpData = await UserXP.findOne({ userId, guildId });
+            if (!userXpData || !userXpData.cartelesComprados || userXpData.cartelesComprados.length === 0) {
+                return await interaction.editReply('Puchica maje, aún no tenés fondos comprados en tu armario.');
+            }
+
+            const perfilEmbed = new EmbedBuilder()
+                .setColor('#9b59b6')
+                .setTitle(`🎨 Armario de Cosméticos de ${interaction.user.username}`)
+                .setDescription('Elegí cuál de tus fondos guardados querés equipar para `#semanal`!')
+                .addFields({ name: '🖼️ Fondo Equipado Actual:', value: `\`${userXpData.cartelEquipado || 'Ninguno'}\`` })
+                .setFooter({ text: 'Zeus Armario', iconURL: client.user.displayAvatarURL() });
+
+            const opcionesCarteles = userXpData.cartelesComprados.map(c => ({
+                label: `Fondo: ${c}`,
+                value: `equipar_cartel_${c}`,
+                emoji: '🖼️'
+            }));
+
+            const menuCarteles = new StringSelectMenuBuilder()
+                .setCustomId('equipar_cartel_menu')
+                .setPlaceholder('Elegí un fondo para equipar...')
+                .addOptions(opcionesCarteles);
+
+            const fila = new ActionRowBuilder().addComponents(menuCarteles);
+
+            await interaction.editReply({ embeds: [perfilEmbed], components: [fila] });
+            return;
+        }
+
+        // /setbg
+        if (commandName === 'setbg') {
+            if (interaction.user.id !== PEPO_ID) {
+                return await interaction.reply({ content: '❌ Solo Pepo puede usar este comando.', ephemeral: true });
+            }
+
+            await interaction.deferReply({ ephemeral: true });
+
+            const nombreId = interaction.options.getString('nombre_id');
+            const imagen = interaction.options.getAttachment('imagen');
+            const precio = interaction.options.getInteger('precio');
+            const nivel = interaction.options.getInteger('nivel');
+
+            await Background.findOneAndUpdate(
+                { guildId: interaction.guild.id, nombreId },
+                { imageUrl: imagen.url, precio, nivelMinimo: nivel },
+                { upsert: true, new: true }
+            );
+
+            await interaction.editReply(`✅ ¡Fondo **${nombreId}** guardado en la base de datos de MongoDB!\n💰 Precio: **${precio} XP**\n⭐ Nivel mínimo: **${nivel}**\n🖼️ URL: ${imagen.url}`);
+            return;
+        }
+
+        // /critica
+        if (commandName === 'critica') {
+            if (interaction.user.id !== PEPO_ID) {
+                return await interaction.reply({ content: '❌ Solo Pepo puede evaluar en `#semanal`.', ephemeral: true });
+            }
+
+            await interaction.deferReply();
+
+            const artista = interaction.options.getUser('artista');
+            const foto = interaction.options.getAttachment('foto');
+            const loBueno = interaction.options.getString('lo_bueno');
+            const loMalo = interaction.options.getString('lo_malo');
+            const resumen = interaction.options.getString('resumen');
+
+            try {
+                let datosArtista = await UserXP.findOne({ userId: artista.id, guildId: interaction.guild.id });
+                const nombreCartel = datosArtista?.cartelEquipado;
+
+                let urlFondoUsar = null;
+                if (nombreCartel) {
+                    const bgObj = await Background.findOne({ guildId: interaction.guild.id, nombreId: nombreCartel });
+                    if (bgObj) urlFondoUsar = bgObj.imageUrl;
                 }
 
-    client.on('interactionCreate', async (interaction) => {
-    
-    // 1. ABRIR TIENDA (CARGA FONDOS REALES DE MONGO)
-    if (interaction.isChatInputCommand() && interaction.commandName === 'comprar') {
-        await interaction.deferReply();
+                const bufferFicha = await generarTarjetaCritica({
+                    dibujoUrl: foto.url,
+                    artistaNombre: artista.username,
+                    loBueno,
+                    loMalo,
+                    resumen,
+                    fondoUrl: urlFondoUsar
+                });
 
-        const fondosGuardados = await Background.find({ guildId: interaction.guild.id });
+                const attachment = new AttachmentBuilder(bufferFicha, { name: `critica_${artista.username}.png` });
 
-        const tiendaEmbed = new EmbedBuilder()
-            .setColor('#00ffaa')
-            .setTitle('🛒 Tienda de Zeus & #semanal')
-            .setDescription('Gasta tu XP acumulada para obtener ventajas o cosméticos de la base de datos 🔥')
-            .addFields(
-                { name: '⚡ Rol XP X2 (3,000 XP)', value: 'Duplica tu XP por 1 día.' },
-                { name: '👁️ Canales Ocultos (5,000 XP)', value: 'Acceso a canales ocultos por 1 día.' },
-                { name: '🎁 Caja de Regalo (2,000 XP)', value: 'Premio de XP al azar.' }
-            )
-            .setFooter({ text: 'Tienda Oficial - Zeus', iconURL: client.user.displayAvatarURL() });
-
-        const opcionesMenu = [
-            { label: 'Rol XP X2 (3,000 XP)', description: 'Duplica tu XP por 1 día', value: 'comprar_x2', emoji: '⚡' },
-            { label: 'Canales Ocultos (5,000 XP)', description: 'Acceso por 1 día', value: 'comprar_ocultos', emoji: '👁️' },
-            { label: 'Caja de Regalo (2,000 XP)', description: 'Misteriosa de Zeus', value: 'comprar_caja', emoji: '🎁' }
-        ];
-
-        fondosGuardados.forEach(f => {
-            tiendaEmbed.addFields({
-                name: `🖼️ Fondo: ${f.nombreId} (${f.precio} XP)`,
-                value: `Requiere Nivel ${f.nivelMinimo}`
-            });
-            opcionesMenu.push({
-                label: `Fondo: ${f.nombreId} (${f.precio} XP)`,
-                description: `Req. Nivel ${f.nivelMinimo}`,
-                value: `comprar_bg_${f.nombreId}`,
-                emoji: '🖼️'
-            });
-        });
-
-        const menuSelec = new StringSelectMenuBuilder()
-            .setCustomId('tienda_menu')
-            .setPlaceholder('Elegí un producto para comprar...')
-            .addOptions(opcionesMenu);
-
-        const fila = new ActionRowBuilder().addComponents(menuSelec);
-        await interaction.editReply({ embeds: [tiendaEmbed], components: [fila] });
-        return;
+                await interaction.editReply({
+                    content: `🎨 **EVALUACIÓN OFICIAL DE #SEMANAL PARA** <@${artista.id}>`,
+                    files: [attachment]
+                });
+            } catch (error) {
+                console.error('Error en /critica:', error);
+                await interaction.editReply('Puchica maje, falló el renderizado.');
+            }
+            return;
+        }
     }
 
-    // 2. PROCESO DE COMPRAS
-    if (interaction.isStringSelectMenu() && interaction.customId === 'tienda_menu') {
-        await interaction.deferReply({ ephemeral: true });
-        const opcion = interaction.values[0];
-        const userId = interaction.user.id;
-        const guildId = interaction.guild.id;
+    // B. MENÚS DESPLEGABLES (COMPRAS Y ARMARIO)
+    if (interaction.isStringSelectMenu()) {
+        const { customId, values } = interaction;
 
-        let userXpData = await UserXP.findOne({ userId, guildId });
-        if (!userXpData) userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
+        if (customId === 'tienda_menu') {
+            await interaction.deferReply({ ephemeral: true });
+            const opcion = values[0];
+            const userId = interaction.user.id;
+            const guildId = interaction.guild.id;
 
-        let xpTotalActual = userXpData.xp + (userXpData.level - 1) * 100;
+            let userXpData = await UserXP.findOne({ userId, guildId });
+            if (!userXpData) userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
 
-        // Compras de Fondos Dinámicos
-        if (opcion.startsWith('comprar_bg_')) {
-            const nombreBg = opcion.replace('comprar_bg_', '');
-            const bgData = await Background.findOne({ guildId, nombreId: nombreBg });
+            let xpTotalActual = userXpData.xp + (userXpData.level - 1) * 100;
 
-            if (!bgData) return await interaction.editReply('Puchica, ese fondo ya no existe en el catálogo.');
-            if (userXpData.level < bgData.nivelMinimo) return await interaction.editReply(`Necesitás ser al menos **Nivel ${bgData.nivelMinimo}** para comprar este fondo.`);
-            if (xpTotalActual < bgData.precio) return await interaction.editReply(`No te alcanza la XP. Cuesta **${bgData.precio} XP**.`);
+            if (opcion.startsWith('comprar_bg_')) {
+                const nombreBg = opcion.replace('comprar_bg_', '');
+                const bgData = await Background.findOne({ guildId, nombreId: nombreBg });
 
-            if (!userXpData.cartelesComprados) userXpData.cartelesComprados = [];
-            if (userXpData.cartelesComprados.includes(nombreBg)) {
+                if (!bgData) return await interaction.editReply('Puchica, ese fondo ya no existe en el catálogo.');
+                if (userXpData.level < bgData.nivelMinimo) return await interaction.editReply(`Necesitás ser al menos **Nivel ${bgData.nivelMinimo}** para comprar este fondo.`);
+                if (xpTotalActual < bgData.precio) return await interaction.editReply(`No te alcanza la XP. Cuesta **${bgData.precio} XP**.`);
+
+                if (!userXpData.cartelesComprados) userXpData.cartelesComprados = [];
+                if (userXpData.cartelesComprados.includes(nombreBg)) {
+                    userXpData.cartelEquipado = nombreBg;
+                    await userXpData.save();
+                    return await interaction.editReply(`Ya tenías este fondo. Te lo hemos **equipado**.`);
+                }
+
+                userXpData.cartelesComprados.push(nombreBg);
                 userXpData.cartelEquipado = nombreBg;
                 await userXpData.save();
-                return await interaction.editReply(`Ya tenías este fondo. Te lo hemos **equipado**.`);
-            }
 
-            userXpData.cartelesComprados.push(nombreBg);
-            userXpData.cartelEquipado = nombreBg;
+                return await interaction.editReply(`🔥 ¡Compraste y equipaste el fondo **${nombreBg}**!`);
+            }
+        }
+
+        if (customId === 'equipar_cartel_menu') {
+            await interaction.deferReply({ ephemeral: true });
+            const seleccion = values[0];
+            const userId = interaction.user.id;
+            const guildId = interaction.guild.id;
+
+            let userXpData = await UserXP.findOne({ userId, guildId });
+            const itemElegido = seleccion.replace('equipar_cartel_', '');
+
+            userXpData.cartelEquipado = itemElegido;
             await userXpData.save();
 
-            return await interaction.editReply(`🔥 ¡Compraste y equipaste el fondo **${nombreBg}**!`);
-        }
-    }
-
-    // 3. COMANDO /SETBG (EXCLUSIVO PEPO - GUARDA LINK EN MONGO)
-    if (interaction.isChatInputCommand() && interaction.commandName === 'setbg') {
-        if (interaction.user.id !== PEPO_ID) {
-            return await interaction.reply({ content: '❌ Solo Pepo puede usar este comando.', ephemeral: true });
-        }
-
-        await interaction.deferReply({ ephemeral: true });
-
-        const nombreId = interaction.options.getString('nombre_id');
-        const imagen = interaction.options.getAttachment('imagen');
-        const precio = interaction.options.getInteger('precio');
-        const nivel = interaction.options.getInteger('nivel');
-
-        await Background.findOneAndUpdate(
-            { guildId: interaction.guild.id, nombreId },
-            { imageUrl: imagen.url, precio, nivelMinimo: nivel },
-            { upsert: true, new: true }
-        );
-
-        await interaction.editReply(`✅ ¡Fondo **${nombreId}** guardado en la base de datos de MongoDB!\n💰 Precio: **${precio} XP**\n⭐ Nivel mínimo: **${nivel}**\n🖼️ URL: ${imagen.url}`);
-        return;
-    }
-
-    // 4. COMANDO /CRITICA (EXCLUSIVO PEPO)
-    if (interaction.isChatInputCommand() && interaction.commandName === 'critica') {
-        if (interaction.user.id !== PEPO_ID) {
-            return await interaction.reply({ content: '❌ Solo Pepo puede evaluar en `#semanal`.', ephemeral: true });
-        }
-
-        await interaction.deferReply();
-
-        const artista = interaction.options.getUser('artista');
-        const foto = interaction.options.getAttachment('foto');
-        const loBueno = interaction.options.getString('lo_bueno');
-        const loMalo = interaction.options.getString('lo_malo');
-        const resumen = interaction.options.getString('resumen');
-
-        try {
-            let datosArtista = await UserXP.findOne({ userId: artista.id, guildId: interaction.guild.id });
-            const nombreCartel = datosArtista?.cartelEquipado;
-
-            let urlFondoUsar = null;
-            if (nombreCartel) {
-                const bgObj = await Background.findOne({ guildId: interaction.guild.id, nombreId: nombreCartel });
-                if (bgObj) urlFondoUsar = bgObj.imageUrl;
-            }
-
-            const bufferFicha = await generarTarjetaCritica({
-                dibujoUrl: foto.url,
-                artistaNombre: artista.username,
-                loBueno,
-                loMalo,
-                resumen,
-                fondoUrl: urlFondoUsar
-            });
-
-            const attachment = new AttachmentBuilder(bufferFicha, { name: `critica_${artista.username}.png` });
-
-            await interaction.editReply({
-                content: `🎨 **EVALUACIÓN OFICIAL DE #SEMANAL PARA** <@${artista.id}>`,
-                files: [attachment]
-            });
-        } catch (error) {
-            console.error('Error en /critica:', error);
-            await interaction.editReply('Puchica maje, falló el renderizado.');
+            return await interaction.editReply(`✅ ¡Nítido! Ahora tenés equipado el fondo **${itemElegido}**.`);
         }
     }
 });
 
 client.login(process.env.TOKEN || process.env.DISCORD_TOKEN);
+        
