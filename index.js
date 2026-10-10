@@ -29,7 +29,7 @@ const client = new Client({
     ]
 });
 
-// TU ID EXCLUSIVA PARA /CRITICA Y /SETBG
+// TU ID EXCLUSIVA PARA /CRITICA, /SETBG Y /DELBG
 const PEPO_ID = '1259006426978713620';
 
 const ROL_XP_X4 = '123456789012345678';
@@ -135,6 +135,14 @@ const dataSetBg = {
     ]
 };
 
+const dataDelBg = {
+    name: 'delbg',
+    description: 'Borra un fondo de MongoDB (Exclusivo Pepo)',
+    options: [
+        { name: 'nombre_id', type: ApplicationCommandOptionType.String, description: 'Nombre único del fondo a borrar', required: true }
+    ]
+};
+
 client.once('ready', async () => {
     console.log(`Bot prendido como ${client.user.tag}! Zeus ya anda zumbando > < :v`);
     try {
@@ -146,13 +154,14 @@ client.once('ready', async () => {
         await client.application.commands.create(dataPerfil);
         await client.application.commands.create(dataCritica);
         await client.application.commands.create(dataSetBg);
+        await client.application.commands.create(dataDelBg);
         console.log('Comandos listos compa > < :v');
     } catch (error) {
         console.error('Error con los comandos:', error);
     }
 });
 
-    // --- RENDERIZADOR CANVAS (FUENTES LIMPIAS Y COLORES DINÁMICOS) ---
+// --- RENDERIZADOR CANVAS (FUENTES LIMPIAS Y COLORES DINÁMICOS) ---
 async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUrl, loBueno, loMalo, resumen, fondoUrl, positivoPct = 70, stats }) {
     const width = 1000;
     const height = 600;
@@ -308,7 +317,7 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
     nextY = wrapText(ctx, '🔴 EL FRENO:', loMalo, '#FF5252', 470, nextY, 470, 20);
     nextY = wrapText(ctx, '⚡ VEREDICTO:', resumen, '#FFD700', 470, nextY, 470, 20);
 
-    // E. DERECHA ABAJO: BARRAS VERTICALES CON COLORES DINÁMICOS POR RANGO
+    // E. DERECHA ABAJO: BARRAS VERTICALES CON COLORES DINÁMICOS
     const graphYBase = 530;
     const graphMaxHeight = 100;
     const startX = 480;
@@ -319,8 +328,7 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
     ctx.font = 'bold 16px sans-serif';
     ctx.fillText('📊 ANÁLISIS DE HABILIDADES:', 470, Math.max(nextY + 10, 385));
 
-    // Función auxiliar para obtener el color exacto según el porcentaje
-    const obtenerColorRango = (porcentaje) => {
+        const obtenerColorRango = (porcentaje) => {
         if (porcentaje <= 10) return '#9C27B0'; // Morado
         if (porcentaje <= 20) return '#FF2A2A'; // Rojo
         if (porcentaje <= 30) return '#FF9800'; // Naranja
@@ -365,9 +373,8 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
     });
 
     return canvas.toBuffer('image/png');
-                }
-
-            // --- MANEJADOR DE INTERACCIONES ---
+}
+// --- MANEJADOR DE INTERACCIONES ---
 client.on('interactionCreate', async (interaction) => {
     
     // A. COMANDOS SLASH
@@ -537,7 +544,30 @@ client.on('interactionCreate', async (interaction) => {
             return;
         }
 
-        // /critica (EXCLUSIVO PEPO)
+        // /delbg (EXCLUSIVO PEPO - BORRA DE MONGO)
+        if (commandName === 'delbg') {
+            if (interaction.user.id !== PEPO_ID) {
+                return await interaction.reply({ content: '❌ Solo Pepo puede usar este comando.', ephemeral: true });
+            }
+
+            await interaction.deferReply({ ephemeral: true });
+
+            try {
+                const nombreId = interaction.options.getString('nombre_id');
+                const borrado = await Background.findOneAndDelete({ guildId: interaction.guild.id, nombreId });
+
+                if (!borrado) {
+                    return await interaction.editReply(`❌ No se encontró ningún fondo llamado **${nombreId}**.`);
+                }
+
+                await interaction.editReply(`🗑️ ¡Fondo **${nombreId}** borrado con éxito de la base de datos!`);
+            } catch (err) {
+                console.error("Error en /delbg:", err);
+                await interaction.editReply(`❌ Puchica maje, dio un error al borrar: \`${err.message}\``);
+            }
+            return;
+}
+                        // /critica (EXCLUSIVO PEPO)
         if (commandName === 'critica') {
             if (interaction.user.id !== PEPO_ID) {
                 return await interaction.reply({ content: '❌ Solo Pepo puede evaluar en `#semanal`.', ephemeral: true });
@@ -570,7 +600,7 @@ client.on('interactionCreate', async (interaction) => {
                     if (bgObj) urlFondoUsar = bgObj.imageUrl;
                 }
 
-                const bufferFicha = await generarTarjetaCritica({
+                                const bufferFicha = await generarTarjetaCritica({
                     dibujoUrl: foto.url,
                     artistaNombre: artista.username,
                     artistaAvatarUrl: artista.displayAvatarURL({ extension: 'png', size: 256 }),
@@ -594,8 +624,10 @@ client.on('interactionCreate', async (interaction) => {
             }
             return;
         }
-                }
-                        // B. MENÚS DESPLEGABLES
+        
+    }
+
+    // B. MENÚS DESPLEGABLES
     if (interaction.isStringSelectMenu()) {
         const { customId, values } = interaction;
 
@@ -659,4 +691,5 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.login(process.env.TOKEN || process.env.DISCORD_TOKEN);
-            
+                    
+        
