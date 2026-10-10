@@ -152,7 +152,7 @@ client.once('ready', async () => {
     }
 });
 
-// --- RENDERIZADOR CANVAS (IMAGEN Y BARRAS IZQUIERDAS CORREGIDAS) ---
+    // --- RENDERIZADOR CANVAS (FUENTES LIMPIAS Y COLORES DINÁMICOS) ---
 async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUrl, loBueno, loMalo, resumen, fondoUrl, positivoPct = 70, stats }) {
     const width = 1000;
     const height = 600;
@@ -182,12 +182,12 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
         ctx.fillRect(0, 0, width, height);
     }
 
-    // Capa translúcida general limpia
+    // Capa translúcida general
     ctx.fillStyle = 'rgba(18, 18, 24, 0.88)';
     ctx.roundRect(20, 20, width - 40, height - 40, 20);
     ctx.fill();
 
-    // A. IZQUIERDA ARRIBA: Dibujo del Artista (Descarga por Fetch)
+    // A. IZQUIERDA ARRIBA: Dibujo del Artista
     try {
         const resDibujo = await fetch(dibujoUrl);
         const bufferDibujo = Buffer.from(await resDibujo.arrayBuffer());
@@ -201,30 +201,27 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
         ctx.restore();
     } catch (err) {
         console.error("Error al cargar dibujo:", err);
-        // Cuadro gris neutro si falla
         ctx.fillStyle = '#2A2A35';
         ctx.roundRect(40, 40, 400, 370, 15);
         ctx.fill();
     }
 
-    // B. IZQUIERDA ABAJO: 2 Barras de Porcentaje (Positivo / Negativo Arregladas)
+    // B. IZQUIERDA ABAJO: 2 Barras de Porcentaje (Positivo / Negativo)
     const barX = 40;
     const barY = 430;
     const barWidth = 400;
     const barHeight = 20;
 
     // 1. Positivo (Verde)
-    ctx.font = 'bold 15px Arial, sans-serif';
+    ctx.font = 'bold 15px sans-serif';
     ctx.fillStyle = '#4CAF50';
     ctx.fillText(`🟢 Positivo: ${posFinal}%`, barX, barY);
 
-    // Fondo gris barra positivo
     ctx.fillStyle = '#1E232A';
     ctx.beginPath();
     ctx.roundRect(barX, barY + 6, barWidth, barHeight, 8);
     ctx.fill();
 
-    // Relleno verde
     if (posFinal > 0) {
         const wVerde = (barWidth * posFinal) / 100;
         ctx.fillStyle = '#4CAF50';
@@ -237,13 +234,11 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
     ctx.fillStyle = '#FF5252';
     ctx.fillText(`🔴 Negativo: ${negativoPct}%`, barX, barY + 48);
 
-    // Fondo gris barra negativo
     ctx.fillStyle = '#1E232A';
     ctx.beginPath();
     ctx.roundRect(barX, barY + 54, barWidth, barHeight, 8);
     ctx.fill();
 
-    // Relleno rojo
     if (negativoPct > 0) {
         const wRojo = (barWidth * negativoPct) / 100;
         ctx.fillStyle = '#FF5252';
@@ -254,7 +249,7 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
 
     // C. DERECHA ARRIBA: Avatar + Nombre del Artista
     ctx.fillStyle = '#FFD700';
-    ctx.font = 'bold 22px Arial, sans-serif';
+    ctx.font = 'bold 22px sans-serif';
     ctx.fillText(`🎨 @${artistaNombre}`, 470, 75);
 
     try {
@@ -283,11 +278,11 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
 
     // D. TEXTO RESUMIDO (Lo fuerte, el freno, veredicto)
     const wrapText = (context, label, text, colorLabel, x, startY, maxWidth, lineHeight) => {
-        context.font = 'bold 16px Arial, sans-serif';
+        context.font = 'bold 16px sans-serif';
         context.fillStyle = colorLabel;
         context.fillText(label, x, startY);
         
-        context.font = '15px Arial, sans-serif';
+        context.font = '15px sans-serif';
         context.fillStyle = '#E2E2E8';
         
         const words = text.split(' ');
@@ -313,7 +308,7 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
     nextY = wrapText(ctx, '🔴 EL FRENO:', loMalo, '#FF5252', 470, nextY, 470, 20);
     nextY = wrapText(ctx, '⚡ VEREDICTO:', resumen, '#FFD700', 470, nextY, 470, 20);
 
-    // E. DERECHA ABAJO: BARRAS VERTICALES ESCALADAS
+    // E. DERECHA ABAJO: BARRAS VERTICALES CON COLORES DINÁMICOS POR RANGO
     const graphYBase = 530;
     const graphMaxHeight = 100;
     const startX = 480;
@@ -321,13 +316,28 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
     const colWidth = 28;
 
     ctx.fillStyle = '#FFD700';
-    ctx.font = 'bold 16px Arial, sans-serif';
+    ctx.font = 'bold 16px sans-serif';
     ctx.fillText('📊 ANÁLISIS DE HABILIDADES:', 470, Math.max(nextY + 10, 385));
+
+    // Función auxiliar para obtener el color exacto según el porcentaje
+    const obtenerColorRango = (porcentaje) => {
+        if (porcentaje <= 10) return '#9C27B0'; // Morado
+        if (porcentaje <= 20) return '#FF2A2A'; // Rojo
+        if (porcentaje <= 30) return '#FF9800'; // Naranja
+        if (porcentaje <= 40) return '#FFEB3B'; // Amarillo
+        if (porcentaje <= 50) return '#76FF03'; // Verde lima
+        if (porcentaje <= 60) return '#4CAF50'; // Verde normal
+        if (porcentaje <= 70) return '#1B5E20'; // Verde oscuro
+        if (porcentaje <= 80) return '#00BCD4'; // Turquesa
+        if (porcentaje <= 90) return '#00B0FF'; // Celeste
+        return '#FFFFFF';                       // Blanco (90-100%)
+    };
 
     stats.forEach((item, index) => {
         const x = startX + (index * barGap);
         const val = Math.max(0, Math.min(100, item.val));
         const currentBarHeight = (graphMaxHeight * val) / 100;
+        const colorBarra = obtenerColorRango(val);
 
         // 1. Fondo barra vertical (Gris oscuro)
         ctx.fillStyle = '#1E232A';
@@ -335,9 +345,9 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
         ctx.roundRect(x, graphYBase - graphMaxHeight, colWidth, graphMaxHeight, 6);
         ctx.fill();
 
-        // 2. Relleno verde
+        // 2. Relleno con el color según su rango
         if (val > 0) {
-            ctx.fillStyle = '#00E676';
+            ctx.fillStyle = colorBarra;
             ctx.beginPath();
             ctx.roundRect(x, graphYBase - currentBarHeight, colWidth, currentBarHeight, 6);
             ctx.fill();
@@ -345,17 +355,17 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
 
         // 3. Porcentaje arriba de la barra
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = 'bold 12px Arial, sans-serif';
+        ctx.font = 'bold 12px sans-serif';
         ctx.fillText(`${val}%`, x - 2, graphYBase - (val > 0 ? currentBarHeight : 0) - 6);
 
         // 4. Nombre abajo de la barra
         ctx.fillStyle = '#AAAAAA';
-        ctx.font = 'bold 11px Arial, sans-serif';
+        ctx.font = 'bold 11px sans-serif';
         ctx.fillText(item.nombre, x - 10, graphYBase + 20);
     });
 
     return canvas.toBuffer('image/png');
-}
+                }
 
             // --- MANEJADOR DE INTERACCIONES ---
 client.on('interactionCreate', async (interaction) => {
