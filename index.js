@@ -351,22 +351,59 @@ client.on('interactionCreate', async (interaction) => {
 
             await interaction.deferReply({ ephemeral: true });
 
-            const nombreId = interaction.options.getString('nombre_id');
-            const imagen = interaction.options.getAttachment('imagen');
-            const precio = interaction.options.getInteger('precio');
-            const nivel = interaction.options.getInteger('nivel');
-            const usuarioEspecial = interaction.options.getUser('usuario');
+            try {
+                const nombreId = interaction.options.getString('nombre_id');
+                const imagen = interaction.options.getAttachment('imagen');
+                const precio = interaction.options.getInteger('precio');
+                const nivel = interaction.options.getInteger('nivel');
+                const usuarioEspecial = interaction.options.getUser('usuario');
 
-            // Guardar o actualizar en MongoDB
-            await Background.findOneAndUpdate(
-                { guildId: interaction.guild.id, nombreId },
-                { 
-                    imageUrl: imagen.url, 
-                    precio: precio !== null ? precio : null, 
-                    nivelMinimo: nivel !== null ? nivel : null 
-                },
-                { upsert: true, new: true }
-            );
+                // Guardar o actualizar en MongoDB
+                await Background.findOneAndUpdate(
+                    { guildId: interaction.guild.id, nombreId },
+                    { 
+                        imageUrl: imagen.url, 
+                        precio: precio !== null ? precio : null, 
+                        nivelMinimo: nivel !== null ? nivel : null 
+                    },
+                    { upsert: true, new: true }
+                );
+
+                // Regalo directo a un usuario
+                if (usuarioEspecial) {
+                    let userXpData = await UserXP.findOne({ userId: usuarioEspecial.id, guildId: interaction.guild.id });
+                    if (!userXpData) {
+                        userXpData = new UserXP({ userId: usuarioEspecial.id, guildId: interaction.guild.id, xp: 0, level: 1 });
+                    }
+
+                    if (!userXpData.cartelesComprados) userXpData.cartelesComprados = [];
+                    if (!userXpData.cartelesComprados.includes(nombreId)) {
+                        userXpData.cartelesComprados.push(nombreId);
+                    }
+                    userXpData.cartelEquipado = nombreId;
+                    await userXpData.save();
+
+                    return await interaction.editReply(`🎁 ¡Fondo **${nombreId}** regalado y equipado a <@${usuarioEspecial.id}>!\n🖼️ URL: ${imagen.url}`);
+                }
+
+                let modoTxt = '';
+                if (precio !== null && nivel !== null) {
+                    modoTxt = `🛒 **Tienda:** Cuesta **${precio} XP** y requiere **Nivel ${nivel}**.`;
+                } else if (precio !== null) {
+                    modoTxt = `🛒 **Tienda:** Cuesta **${precio} XP** para todos.`;
+                } else if (nivel !== null) {
+                    modoTxt = `🎁 **Recompensa Gratis:** Se desbloquea al llegar a **Nivel ${nivel}**.`;
+                } else {
+                    modoTxt = `🔓 **Predeterminado:** Gratis y disponible en el armario de TODOS.`;
+                }
+
+                await interaction.editReply(`✅ ¡Fondo **${nombreId}** guardado!\n${modoTxt}\n🖼️ URL: ${imagen.url}`);
+            } catch (err) {
+                console.error("Clavo en /setbg:", err);
+                await interaction.editReply(`❌ Puchica maje, dio un error al guardar: \`${err.message}\``);
+            }
+            return;
+        }
 
             // Regalo directo a un usuario
             if (usuarioEspecial) {
