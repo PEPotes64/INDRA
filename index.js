@@ -424,6 +424,102 @@ client.on('interactionCreate', async interaction => {
 
     const { commandName } = interaction;
 
+        // /xp
+    if (commandName === 'xp') {
+        try {
+            await interaction.deferReply();
+            const target = interaction.options.getUser('usuario') || interaction.user;
+            let userXp = await UserXP.findOne({ userId: target.id, guildId: interaction.guild.id });
+
+            const xp = userXp ? userXp.xp : 0;
+            const level = userXp ? userXp.level : 1;
+
+            return await interaction.editReply(`⭐ <@${target.id}> tiene **${xp} XP** y está en el **Nivel ${level}**.`);
+        } catch (err) {
+            console.error("Error en /xp:", err);
+            if (interaction.deferred) {
+                return await interaction.editReply(`❌ Puchica maje, dio error con la BD: \`${err.message}\``);
+            }
+        }
+        return;
+    }
+
+    // /top
+    if (commandName === 'top') {
+        try {
+            await interaction.deferReply();
+            const topUsers = await UserXP.find({ guildId: interaction.guild.id }).sort({ xp: -1 }).limit(10);
+            if (!topUsers || topUsers.length === 0) {
+                return await interaction.editReply('❌ No hay registros de XP todavía en este servidor.');
+            }
+
+            let desc = topUsers.map((u, i) => `**#${i + 1}** <@${u.userId}> - Nivel ${u.level} (${u.xp} XP)`).join('\n');
+            return await interaction.editReply(`🏆 **TOP 10 DE MAJES CON MÁS XP**:\n\n${desc}`);
+        } catch (err) {
+            console.error("Error en /top:", err);
+            if (interaction.deferred) {
+                return await interaction.editReply(`❌ Error al cargar el top: \`${err.message}\``);
+            }
+        }
+        return;
+    }
+
+    // /añadir-xp (EXCLUSIVO PEPO)
+    if (commandName === 'añadir-xp') {
+        try {
+            if (interaction.user.id !== PEPO_ID) {
+                return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
+            }
+            await interaction.deferReply({ ephemeral: true });
+
+            const target = interaction.options.getUser('usuario');
+            const cant = interaction.options.getInteger('cant');
+
+            let userXp = await UserXP.findOne({ userId: target.id, guildId: interaction.guild.id });
+            if (!userXp) {
+                userXp = new UserXP({ userId: target.id, guildId: interaction.guild.id, xp: 0, level: 1 });
+            }
+
+            userXp.xp += cant;
+            await userXp.save();
+
+            return await interaction.editReply(`✅ Se le añadieron **${cant} XP** a <@${target.id}>.`);
+        } catch (err) {
+            console.error("Error en añadir-xp:", err);
+            if (interaction.deferred) {
+                return await interaction.editReply(`❌ Error: \`${err.message}\``);
+            }
+        }
+        return;
+    }
+
+    // /quitar-xp (EXCLUSIVO PEPO)
+    if (commandName === 'quitar-xp') {
+        try {
+            if (interaction.user.id !== PEPO_ID) {
+                return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
+            }
+            await interaction.deferReply({ ephemeral: true });
+
+            const target = interaction.options.getUser('usuario');
+            const cant = interaction.options.getInteger('cant');
+
+            let userXp = await UserXP.findOne({ userId: target.id, guildId: interaction.guild.id });
+            if (!userXp) return await interaction.editReply('❌ El usuario no tiene registros.');
+
+            userXp.xp = Math.max(0, userXp.xp - cant);
+            await userXp.save();
+
+            return await interaction.editReply(`✅ Se le quitaron **${cant} XP** a <@${target.id}>.`);
+        } catch (err) {
+            console.error("Error en quitar-xp:", err);
+            if (interaction.deferred) {
+                return await interaction.editReply(`❌ Error: \`${err.message}\``);
+            }
+        }
+        return;
+                }
+
     // /comprar
     if (commandName === 'comprar') {
         await interaction.deferReply();
