@@ -583,9 +583,7 @@ client.on('interactionCreate', async interaction => {
             return await interaction.editReply({ embeds: [embedXp] });
         } catch (err) {
             console.error("Error en /xp:", err);
-            if (interaction.deferred) {
-                return await interaction.editReply(`❌ Error al cargar XP: \`${err.message}\``);
-            }
+            if (interaction.deferred) return await interaction.editReply(`❌ Error al cargar XP: \`${err.message}\``);
         }
     }
 
@@ -614,9 +612,197 @@ client.on('interactionCreate', async interaction => {
             return await interaction.editReply({ embeds: [embedTop] });
         } catch (err) {
             console.error("Error en /top:", err);
-            if (interaction.deferred) {
-                return await interaction.editReply(`❌ Error al cargar el top: \`${err.message}\``);
+            if (interaction.deferred) return await interaction.editReply(`❌ Error al cargar el top: \`${err.message}\``);
+        }
+    }
+
+    // /perfil
+    if (commandName === 'perfil') {
+        try {
+            await interaction.deferReply({ ephemeral: true });
+            const userId = interaction.user.id;
+            const guildId = interaction.guild.id;
+
+            let userXpData = await UserXP.findOne({ userId, guildId });
+            const nivelUsuario = userXpData ? userXpData.level : 1;
+            const compradosAsignados = userXpData?.cartelesComprados || [];
+
+            const desbloqueadosPorNivel = await Background.find({
+                guildId,
+                precio: null,
+                nivelMinimo: { $ne: null, $lte: nivelUsuario }
+            });
+
+            const predeterminados = await Background.find({
+                guildId,
+                precio: null,
+                nivelMinimo: null
+            });
+
+            const nombresGratis = [...desbloqueadosPorNivel, ...predeterminados].map(b => b.nombreId);
+            const todosMisFondos = [...new Set([...nombresGratis, ...compradosAsignados])];
+
+            if (todosMisFondos.length === 0) {
+                return await interaction.editReply('Puchica maje, aún no tenés fondos disponibles.');
             }
+
+            const perfilEmbed = new EmbedBuilder()
+                .setColor('#0b50b6')
+                .setTitle(`🎨 Armario de Cosméticos de ${interaction.user.username}`)
+                .setDescription('Elegí cuál de tus fondos guardados querés equiparte en tus fichas.')
+                .addFields({ name: '🖼️ Fondo Equipado Actual:', value: `\`${userXpData?.cartelEquipado || 'Ninguno'}\`` })
+                .setFooter({ text: 'Zeus Armario', iconURL: client.user.displayAvatarURL() });
+
+            const opcionesCarteles = todosMisFondos.map(c => ({
+                label: `Fondo: ${c}`,
+                value: `equipar_cartel_${c}`,
+                emoji: '🖼️'
+            }));
+
+            const menuCarteles = new StringSelectMenuBuilder()
+                .setCustomId('equipar_cartel_menu')
+                .setPlaceholder('Elegí un fondo para equipar...')
+                .addOptions(opcionesCarteles);
+
+            const fila = new ActionRowBuilder().addComponents(menuCarteles);
+            return await interaction.editReply({ embeds: [perfilEmbed], components: [fila] });
+        } catch (err) {
+            console.error("Error en /perfil:", err);
+            if (interaction.deferred) await interaction.editReply(`❌ Error al abrir perfil: \`${err.message}\``);
+        }
+    }
+
+    // /añadir-xp
+    if (commandName === 'añadir-xp') {
+        try {
+            if (interaction.user.id !== PEPO_ID) {
+                return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
+            }
+            await interaction.deferReply();
+
+            const target = interaction.options.getUser('usuario');
+            const cant = interaction.options.getInteger('cant');
+
+            let userXp = await UserXP.findOne({ userId: target.id, guildId: interaction.guild.id });
+            if (!userXp) userXp = new UserXP({ userId: target.id, guildId: interaction.guild.id, xp: 0, level: 1 });
+
+            userXp.xp += cant;
+            let xpNecesaria = (userXp.level + 1) * 100;
+            while (userXp.xp >= xpNecesaria) {
+                userXp.xp -= xpNecesaria;
+                userXp.level += 1;
+                xpNecesaria = (userXp.level + 1) * 100;
+            }
+
+            await userXp.save();
+
+            const embedAdd = new EmbedBuilder()
+                .setColor('#FFD700')
+                .setTitle('👑 XP Puesta por Admin')
+                .setDescription(`<@${target.id}> Has sido ayudado por Zeus, se te sumaron **+${cant} XP**`)
+                .addFields(
+                    { name: '⭐ Tu Nuevo nivel es:', value: `**${userXp.level}**`, inline: false },
+                    { name: '✨ Esta es tu XP:', value: `**${userXp.xp} /${(userXp.level + 1) * 100}**`, inline: false }
+                )
+                .setThumbnail(target.displayAvatarURL({ dynamic: true }))
+                .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
+
+            return await interaction.editReply({ embeds: [embedAdd] });
+        } catch (err) {
+            console.error("Error en añadir-xp:", err);
+            if (interaction.deferred) await interaction.editReply(`❌ Error: \`${err.message}\``);
+        }
+    }
+
+    // /quitar-xp
+    if (commandName === 'quitar-xp') {
+        try {
+            if (interaction.user.id !== PEPO_ID) {
+                return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
+            }
+            await interaction.deferReply();
+
+            const target = interaction.options.getUser('usuario');
+            const cant = interaction.options.getInteger('cant');
+
+            let userXp = await UserXP.findOne({ userId: target.id, guildId: interaction.guild.id });
+            if (!userXp) return await interaction.editReply('❌ El usuario no tiene registros.');
+
+            userXp.xp = Math.max(0, userXp.xp - cant);
+            await userXp.save();
+
+            const embedQuitar = new EmbedBuilder()
+                .setColor('#FF3333')
+                .setTitle('⚠️ XP Restada por Admin')
+                .setDescription(`A <@${target.id}> se le castigó y se le quitaron **-${cant} XP**`)
+                .addFields(
+                    { name: '⭐ Nivel Actual:', value: `**${userXp.level}**`, inline: false },
+                    { name: '✨ XP Restante:', value: `**${userXp.xp} /${(userXp.level + 1) * 100}**`, inline: false }
+                )
+                .setThumbnail(target.displayAvatarURL({ dynamic: true }))
+                .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
+
+            return await interaction.editReply({ embeds: [embedQuitar] });
+        } catch (err) {
+            console.error("Error en quitar-xp:", err);
+            if (interaction.deferred) await interaction.editReply(`❌ Error: \`${err.message}\``);
+        }
+    }
+
+    // /critica (Canvas de Evaluación Semanal)
+    if (commandName === 'critica') {
+        if (interaction.user.id !== PEPO_ID) {
+            return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
+        }
+        await interaction.deferReply();
+
+        try {
+            const artista = interaction.options.getUser('artista');
+            const foto = interaction.options.getAttachment('foto');
+            const loBueno = interaction.options.getString('lo_bueno');
+            const loMalo = interaction.options.getString('lo_malo');
+            const resumen = interaction.options.getString('resumen');
+            const positivoPct = interaction.options.getInteger('positivo') ?? 70;
+
+            const stats = [
+                { nombre: 'Lineart', val: interaction.options.getInteger('lineart') ?? 80 },
+                { nombre: 'Creatividad', val: interaction.options.getInteger('creatividad') ?? 85 },
+                { nombre: 'Detalles', val: interaction.options.getInteger('detalles') ?? 75 },
+                { nombre: 'Paleta', val: interaction.options.getInteger('paleta') ?? 90 },
+                { nombre: 'Pinceles', val: interaction.options.getInteger('pinceles') ?? 70 }
+            ];
+
+            let datosArtista = await UserXP.findOne({ userId: artista.id, guildId: interaction.guild.id });
+            const nombreCartel = datosArtista?.cartelEquipado;
+            const fuenteNombre = datosArtista?.fuenteEquipada;
+
+            let urlFondoUsar = null;
+            if (nombreCartel) {
+                const bgObj = await Background.findOne({ guildId: interaction.guild.id, nombreId: nombreCartel });
+                if (bgObj) urlFondoUsar = bgObj.imageUrl;
+            }
+
+            const bufferFicha = await generarTarjetaCritica({
+                dibujoUrl: foto.url,
+                artistaNombre: artista.username,
+                artistaAvatarUrl: artista.displayAvatarURL({ extension: 'png', size: 256 }),
+                loBueno,
+                loMalo,
+                resumen,
+                fondoUrl: urlFondoUsar,
+                positivoPct,
+                stats,
+                fuenteNombre
+            });
+
+            const attachment = new AttachmentBuilder(bufferFicha, { name: `critica_${artista.username}.png` });
+            return await interaction.editReply({
+                content: `🎨 **EVALUACIÓN OFICIAL DE #SEMANAL PARA** <@${artista.id}>`,
+                files: [attachment]
+            });
+        } catch (error) {
+            console.error("Error en /critica:", error);
+            return await interaction.editReply('❌ Puchica maje, falló el renderizado.');
         }
     }
 
