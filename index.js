@@ -152,7 +152,7 @@ client.once('ready', async () => {
     }
 });
 
-// --- RENDERIZADOR CANVAS (CORREGIDO SIN SOMBRAS FEAS Y BARRAS PRECISAS) ---
+// --- RENDERIZADOR CANVAS (IMAGEN Y BARRAS IZQUIERDAS CORREGIDAS) ---
 async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUrl, loBueno, loMalo, resumen, fondoUrl, positivoPct = 70, stats }) {
     const width = 1000;
     const height = 600;
@@ -165,13 +165,13 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
     // Desactivar sombras globalmente
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
 
     // 1. Fondo completo
     if (fondoUrl) {
         try {
-            const fondoImg = await loadImage(fondoUrl);
+            const resBg = await fetch(fondoUrl);
+            const bufBg = Buffer.from(await resBg.arrayBuffer());
+            const fondoImg = await loadImage(bufBg);
             ctx.drawImage(fondoImg, 0, 0, width, height);
         } catch (e) {
             ctx.fillStyle = '#121216';
@@ -187,9 +187,12 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
     ctx.roundRect(20, 20, width - 40, height - 40, 20);
     ctx.fill();
 
-    // A. IZQUIERDA ARRIBA: Dibujo del Artista
+    // A. IZQUIERDA ARRIBA: Dibujo del Artista (Descarga por Fetch)
     try {
-        const dibujoImg = await loadImage(dibujoUrl);
+        const resDibujo = await fetch(dibujoUrl);
+        const bufferDibujo = Buffer.from(await resDibujo.arrayBuffer());
+        const dibujoImg = await loadImage(bufferDibujo);
+
         ctx.save();
         ctx.beginPath();
         ctx.roundRect(40, 40, 400, 370, 15);
@@ -198,36 +201,54 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
         ctx.restore();
     } catch (err) {
         console.error("Error al cargar dibujo:", err);
+        // Cuadro gris neutro si falla
+        ctx.fillStyle = '#2A2A35';
+        ctx.roundRect(40, 40, 400, 370, 15);
+        ctx.fill();
     }
 
-    // B. IZQUIERDA ABAJO: 2 Barras de Porcentaje (Positivo / Negativo)
+    // B. IZQUIERDA ABAJO: 2 Barras de Porcentaje (Positivo / Negativo Arregladas)
     const barX = 40;
     const barY = 430;
     const barWidth = 400;
     const barHeight = 20;
 
-    // Positivo (Verde)
+    // 1. Positivo (Verde)
     ctx.font = 'bold 15px Arial, sans-serif';
     ctx.fillStyle = '#4CAF50';
     ctx.fillText(`🟢 Positivo: ${posFinal}%`, barX, barY);
+
+    // Fondo gris barra positivo
     ctx.fillStyle = '#1E232A';
+    ctx.beginPath();
     ctx.roundRect(barX, barY + 6, barWidth, barHeight, 8);
     ctx.fill();
+
+    // Relleno verde
     if (posFinal > 0) {
+        const wVerde = (barWidth * posFinal) / 100;
         ctx.fillStyle = '#4CAF50';
-        ctx.roundRect(barX, barY + 6, Math.max(12, (barWidth * posFinal) / 100), barHeight, 8);
+        ctx.beginPath();
+        ctx.roundRect(barX, barY + 6, wVerde, barHeight, 8);
         ctx.fill();
     }
 
-    // Negativo (Rojo)
+    // 2. Negativo (Rojo)
     ctx.fillStyle = '#FF5252';
     ctx.fillText(`🔴 Negativo: ${negativoPct}%`, barX, barY + 48);
+
+    // Fondo gris barra negativo
     ctx.fillStyle = '#1E232A';
+    ctx.beginPath();
     ctx.roundRect(barX, barY + 54, barWidth, barHeight, 8);
     ctx.fill();
+
+    // Relleno rojo
     if (negativoPct > 0) {
+        const wRojo = (barWidth * negativoPct) / 100;
         ctx.fillStyle = '#FF5252';
-        ctx.roundRect(barX, barY + 54, Math.max(12, (barWidth * negativoPct) / 100), barHeight, 8);
+        ctx.beginPath();
+        ctx.roundRect(barX, barY + 54, wRojo, barHeight, 8);
         ctx.fill();
     }
 
@@ -238,7 +259,10 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
 
     try {
         if (artistaAvatarUrl) {
-            const avatarImg = await loadImage(artistaAvatarUrl);
+            const resAvatar = await fetch(artistaAvatarUrl);
+            const bufAvatar = Buffer.from(await resAvatar.arrayBuffer());
+            const avatarImg = await loadImage(bufAvatar);
+
             ctx.save();
             ctx.beginPath();
             ctx.arc(920, 70, 35, 0, Math.PI * 2);
@@ -289,7 +313,7 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
     nextY = wrapText(ctx, '🔴 EL FRENO:', loMalo, '#FF5252', 470, nextY, 470, 20);
     nextY = wrapText(ctx, '⚡ VEREDICTO:', resumen, '#FFD700', 470, nextY, 470, 20);
 
-    // E. DERECHA ABAJO: BARRAS VERTICALES ESCALADAS CORRECTAMENTE
+    // E. DERECHA ABAJO: BARRAS VERTICALES ESCALADAS
     const graphYBase = 530;
     const graphMaxHeight = 100;
     const startX = 480;
@@ -311,19 +335,18 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
         ctx.roundRect(x, graphYBase - graphMaxHeight, colWidth, graphMaxHeight, 6);
         ctx.fill();
 
-        // 2. Relleno verde fosforescente segun % real
+        // 2. Relleno verde
         if (val > 0) {
-            const hVerde = Math.max(8, currentBarHeight);
             ctx.fillStyle = '#00E676';
             ctx.beginPath();
-            ctx.roundRect(x, graphYBase - hVerde, colWidth, hVerde, 6);
+            ctx.roundRect(x, graphYBase - currentBarHeight, colWidth, currentBarHeight, 6);
             ctx.fill();
         }
 
         // 3. Porcentaje arriba de la barra
         ctx.fillStyle = '#FFFFFF';
         ctx.font = 'bold 12px Arial, sans-serif';
-        ctx.fillText(`${val}%`, x - 2, graphYBase - (val > 0 ? Math.max(8, currentBarHeight) : 0) - 6);
+        ctx.fillText(`${val}%`, x - 2, graphYBase - (val > 0 ? currentBarHeight : 0) - 6);
 
         // 4. Nombre abajo de la barra
         ctx.fillStyle = '#AAAAAA';
@@ -332,7 +355,8 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
     });
 
     return canvas.toBuffer('image/png');
-         }
+}
+
             // --- MANEJADOR DE INTERACCIONES ---
 client.on('interactionCreate', async (interaction) => {
     
