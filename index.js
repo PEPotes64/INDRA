@@ -152,7 +152,7 @@ client.once('ready', async () => {
     }
 });
 
-// --- RENDERIZADOR CANVAS (DISEÑO SEGÚN BOCETO DE PEPO) ---
+// --- RENDERIZADOR CANVAS (CORREGIDO SIN SOMBRAS FEAS Y BARRAS PRECISAS) ---
 async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUrl, loBueno, loMalo, resumen, fondoUrl, positivoPct = 70, stats }) {
     const width = 1000;
     const height = 600;
@@ -161,6 +161,12 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
 
     const posFinal = Math.max(0, Math.min(100, positivoPct));
     const negativoPct = Math.max(0, Math.min(100, 100 - posFinal));
+
+    // Desactivar sombras globalmente
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
 
     // 1. Fondo completo
     if (fondoUrl) {
@@ -176,13 +182,10 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
         ctx.fillRect(0, 0, width, height);
     }
 
-    // Capa translúcida general
-    ctx.fillStyle = 'rgba(18, 18, 24, 0.82)';
+    // Capa translúcida general limpia
+    ctx.fillStyle = 'rgba(18, 18, 24, 0.88)';
     ctx.roundRect(20, 20, width - 40, height - 40, 20);
     ctx.fill();
-
-    ctx.shadowColor = 'black';
-    ctx.shadowBlur = 6;
 
     // A. IZQUIERDA ARRIBA: Dibujo del Artista
     try {
@@ -203,26 +206,30 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
     const barWidth = 400;
     const barHeight = 20;
 
-    // Label e Indicador Positivo
+    // Positivo (Verde)
     ctx.font = 'bold 15px Arial, sans-serif';
     ctx.fillStyle = '#4CAF50';
     ctx.fillText(`🟢 Positivo: ${posFinal}%`, barX, barY);
-    ctx.fillStyle = '#22252A';
+    ctx.fillStyle = '#1E232A';
     ctx.roundRect(barX, barY + 6, barWidth, barHeight, 8);
     ctx.fill();
-    ctx.fillStyle = '#4CAF50';
-    ctx.roundRect(barX, barY + 6, (barWidth * posFinal) / 100, barHeight, 8);
-    ctx.fill();
+    if (posFinal > 0) {
+        ctx.fillStyle = '#4CAF50';
+        ctx.roundRect(barX, barY + 6, Math.max(12, (barWidth * posFinal) / 100), barHeight, 8);
+        ctx.fill();
+    }
 
-    // Label e Indicador Negativo
+    // Negativo (Rojo)
     ctx.fillStyle = '#FF5252';
     ctx.fillText(`🔴 Negativo: ${negativoPct}%`, barX, barY + 48);
-    ctx.fillStyle = '#22252A';
+    ctx.fillStyle = '#1E232A';
     ctx.roundRect(barX, barY + 54, barWidth, barHeight, 8);
     ctx.fill();
-    ctx.fillStyle = '#FF5252';
-    ctx.roundRect(barX, barY + 54, (barWidth * negativoPct) / 100, barHeight, 8);
-    ctx.fill();
+    if (negativoPct > 0) {
+        ctx.fillStyle = '#FF5252';
+        ctx.roundRect(barX, barY + 54, Math.max(12, (barWidth * negativoPct) / 100), barHeight, 8);
+        ctx.fill();
+    }
 
     // C. DERECHA ARRIBA: Avatar + Nombre del Artista
     ctx.fillStyle = '#FFD700';
@@ -282,9 +289,9 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
     nextY = wrapText(ctx, '🔴 EL FRENO:', loMalo, '#FF5252', 470, nextY, 470, 20);
     nextY = wrapText(ctx, '⚡ VEREDICTO:', resumen, '#FFD700', 470, nextY, 470, 20);
 
-    // E. DERECHA ABAJO: GRÁFICA DE BARRAS VERTICALES (Lineart, Creatividad, Detalles, Paleta, Pinceles)
-    const graphYBase = 540;
-    const graphMaxHeight = 110;
+    // E. DERECHA ABAJO: BARRAS VERTICALES ESCALADAS CORRECTAMENTE
+    const graphYBase = 530;
+    const graphMaxHeight = 100;
     const startX = 480;
     const barGap = 98;
     const colWidth = 28;
@@ -298,31 +305,35 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
         const val = Math.max(0, Math.min(100, item.val));
         const currentBarHeight = (graphMaxHeight * val) / 100;
 
-        // Fondo barra vertical
-        ctx.fillStyle = '#22252A';
+        // 1. Fondo barra vertical (Gris oscuro)
+        ctx.fillStyle = '#1E232A';
+        ctx.beginPath();
         ctx.roundRect(x, graphYBase - graphMaxHeight, colWidth, graphMaxHeight, 6);
         ctx.fill();
 
-        // Relleno barra vertical
-        ctx.fillStyle = '#00E676';
-        ctx.roundRect(x, graphYBase - currentBarHeight, colWidth, currentBarHeight, 6);
-        ctx.fill();
+        // 2. Relleno verde fosforescente segun % real
+        if (val > 0) {
+            const hVerde = Math.max(8, currentBarHeight);
+            ctx.fillStyle = '#00E676';
+            ctx.beginPath();
+            ctx.roundRect(x, graphYBase - hVerde, colWidth, hVerde, 6);
+            ctx.fill();
+        }
 
-        // Porcentaje arriba
+        // 3. Porcentaje arriba de la barra
         ctx.fillStyle = '#FFFFFF';
         ctx.font = 'bold 12px Arial, sans-serif';
-        ctx.fillText(`${val}%`, x - 2, graphYBase - currentBarHeight - 6);
+        ctx.fillText(`${val}%`, x - 2, graphYBase - (val > 0 ? Math.max(8, currentBarHeight) : 0) - 6);
 
-        // Nombre de la casilla abajo
+        // 4. Nombre abajo de la barra
         ctx.fillStyle = '#AAAAAA';
         ctx.font = 'bold 11px Arial, sans-serif';
         ctx.fillText(item.nombre, x - 10, graphYBase + 20);
     });
 
     return canvas.toBuffer('image/png');
-}
-
-// --- MANEJADOR DE INTERACCIONES ---
+         }
+            // --- MANEJADOR DE INTERACCIONES ---
 client.on('interactionCreate', async (interaction) => {
     
     // A. COMANDOS SLASH
@@ -470,7 +481,7 @@ client.on('interactionCreate', async (interaction) => {
                     userXpData.cartelEquipado = nombreId;
                     await userXpData.save();
 
-                                        return await interaction.editReply(`🎁 ¡Fondo **${nombreId}** regalado y equipado a <@${usuarioEspecial.id}>!\n🖼️ URL: ${imagen.url}`);
+                    return await interaction.editReply(`🎁 ¡Fondo **${nombreId}** regalado y equipado a <@${usuarioEspecial.id}>!\n🖼️ URL: ${imagen.url}`);
                 }
 
                 let modoTxt = '';
@@ -549,9 +560,8 @@ client.on('interactionCreate', async (interaction) => {
             }
             return;
         }
-    }
-
-    // B. MENÚS DESPLEGABLES
+                }
+                        // B. MENÚS DESPLEGABLES
     if (interaction.isStringSelectMenu()) {
         const { customId, values } = interaction;
 
@@ -580,7 +590,7 @@ client.on('interactionCreate', async (interaction) => {
 
                 if (!userXpData.cartelesComprados) userXpData.cartelesComprados = [];
                 if (userXpData.cartelesComprados.includes(nombreBg)) {
-                                        userXpData.cartelEquipado = nombreBg;
+                    userXpData.cartelEquipado = nombreBg;
                     await userXpData.save();
                     return await interaction.editReply(`Ya tenías este fondo. Te lo hemos **equipado**.`);
                 }
@@ -615,3 +625,4 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.login(process.env.TOKEN || process.env.DISCORD_TOKEN);
+            
