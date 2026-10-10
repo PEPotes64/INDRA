@@ -424,7 +424,7 @@ client.on('interactionCreate', async interaction => {
 
     const { commandName } = interaction;
 
-        // /xp
+            // /xp (CON EMBED Y AURA RESTAURADA)
     if (commandName === 'xp') {
         try {
             await interaction.deferReply();
@@ -433,28 +433,52 @@ client.on('interactionCreate', async interaction => {
 
             const xp = userXp ? userXp.xp : 0;
             const level = userXp ? userXp.level : 1;
+            const xpSiguiente = level * 500;
 
-            return await interaction.editReply(`⭐ <@${target.id}> tiene **${xp} XP** y está en el **Nivel ${level}**.`);
+            const embedXp = new EmbedBuilder()
+                .setColor('#FFD700')
+                .setTitle(`⭐ Nivel y XP de @${target.username}`)
+                .setDescription(`Consulta el progreso actual en el servidor.`)
+                .addFields(
+                    { name: '🌟 Nivel Actual:', value: `**${level}**`, inline: true },
+                    { name: '✨ XP Acumulada:', value: `**${xp} /${xpSiguiente}**`, inline: true }
+                )
+                .setThumbnail(target.displayAvatarURL({ dynamic: true }))
+                .setFooter({ text: 'Zeus XP System', iconURL: client.user.displayAvatarURL() });
+
+            return await interaction.editReply({ embeds: [embedXp] });
         } catch (err) {
             console.error("Error en /xp:", err);
             if (interaction.deferred) {
-                return await interaction.editReply(`❌ Puchica maje, dio error con la BD: \`${err.message}\``);
+                return await interaction.editReply(`❌ Error al cargar XP: \`${err.message}\``);
             }
         }
         return;
     }
 
-    // /top
+    // /top (RANKING ESTILO EMBED CHULO)
     if (commandName === 'top') {
         try {
             await interaction.deferReply();
             const topUsers = await UserXP.find({ guildId: interaction.guild.id }).sort({ xp: -1 }).limit(10);
+            
             if (!topUsers || topUsers.length === 0) {
                 return await interaction.editReply('❌ No hay registros de XP todavía en este servidor.');
             }
 
-            let desc = topUsers.map((u, i) => `**#${i + 1}** <@${u.userId}> - Nivel ${u.level} (${u.xp} XP)`).join('\n');
-            return await interaction.editReply(`🏆 **TOP 10 DE MAJES CON MÁS XP**:\n\n${desc}`);
+            let desc = topUsers.map((u, i) => {
+                const medalla = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `**#${i + 1}**`;
+                return `${medalla} <@${u.userId}> — **Nivel ${u.level}** (${u.xp} XP)`;
+            }).join('\n');
+
+            const embedTop = new EmbedBuilder()
+                .setColor('#FFD700')
+                .setTitle('🏆 TOP 10 MAJES CON MÁS XP Y NIVELES')
+                .setDescription(desc)
+                .setThumbnail(interaction.guild.iconURL({ dynamic: true }))
+                .setFooter({ text: 'Ranking Oficial • Zeus', iconURL: client.user.displayAvatarURL() });
+
+            return await interaction.editReply({ embeds: [embedTop] });
         } catch (err) {
             console.error("Error en /top:", err);
             if (interaction.deferred) {
@@ -464,13 +488,13 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
-    // /añadir-xp (EXCLUSIVO PEPO)
+    // /añadir-xp (ESTILO ADMIN CON THUMBNAIL)
     if (commandName === 'añadir-xp') {
         try {
             if (interaction.user.id !== PEPO_ID) {
                 return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
             }
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply();
 
             const target = interaction.options.getUser('usuario');
             const cant = interaction.options.getInteger('cant');
@@ -481,9 +505,26 @@ client.on('interactionCreate', async interaction => {
             }
 
             userXp.xp += cant;
+            let xpNecesaria = userXp.level * 500;
+            if (userXp.xp >= xpNecesaria) {
+                userXp.xp -= xpNecesaria;
+                userXp.level += 1;
+            }
+
             await userXp.save();
 
-            return await interaction.editReply(`✅ Se le añadieron **${cant} XP** a <@${target.id}>.`);
+            const embedAdd = new EmbedBuilder()
+                .setColor('#FFD700')
+                .setTitle('⚡ XP Puesta por Admin')
+                .setDescription(`<@${target.id}> Haz sido ayudado por Zeus, se te sumaron **+${cant} XP**`)
+                .addFields(
+                    { name: '🌟 Tu Nuevo nivel es:', value: `**${userXp.level}**`, inline: false },
+                    { name: '✨ Esta es tu XP:', value: `**${userXp.xp} /${userXp.level * 500}**`, inline: false }
+                )
+                .setThumbnail(target.displayAvatarURL({ dynamic: true }))
+                .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
+
+            return await interaction.editReply({ embeds: [embedAdd] });
         } catch (err) {
             console.error("Error en añadir-xp:", err);
             if (interaction.deferred) {
@@ -493,13 +534,13 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
-    // /quitar-xp (EXCLUSIVO PEPO)
+    // /quitar-xp (ESTILO ADMIN CASTEGADO)
     if (commandName === 'quitar-xp') {
         try {
             if (interaction.user.id !== PEPO_ID) {
                 return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
             }
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply();
 
             const target = interaction.options.getUser('usuario');
             const cant = interaction.options.getInteger('cant');
@@ -510,7 +551,18 @@ client.on('interactionCreate', async interaction => {
             userXp.xp = Math.max(0, userXp.xp - cant);
             await userXp.save();
 
-            return await interaction.editReply(`✅ Se le quitaron **${cant} XP** a <@${target.id}>.`);
+            const embedQuitar = new EmbedBuilder()
+                .setColor('#FF3333')
+                .setTitle('⚠️ XP Restada por Admin')
+                .setDescription(`A <@${target.id}> se le castigó y se le quitaron **-${cant} XP**`)
+                .addFields(
+                    { name: '🌟 Nivel Actual:', value: `**${userXp.level}**`, inline: false },
+                    { name: '✨ XP Restante:', value: `**${userXp.xp} /${userXp.level * 500}**`, inline: false }
+                )
+                .setThumbnail(target.displayAvatarURL({ dynamic: true }))
+                .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
+
+            return await interaction.editReply({ embeds: [embedQuitar] });
         } catch (err) {
             console.error("Error en quitar-xp:", err);
             if (interaction.deferred) {
@@ -518,7 +570,7 @@ client.on('interactionCreate', async interaction => {
             }
         }
         return;
-                }
+    }
 
     // /comprar
     if (commandName === 'comprar') {
