@@ -113,7 +113,13 @@ const dataCritica = {
         { name: 'foto', type: ApplicationCommandOptionType.Attachment, description: 'El dibujo o imagen a criticar', required: true },
         { name: 'lo_bueno', type: ApplicationCommandOptionType.String, description: 'Aspectos positivos / Lo fuerte', required: true },
         { name: 'lo_malo', type: ApplicationCommandOptionType.String, description: 'Aspectos a corregir / El freno', required: true },
-        { name: 'resumen', type: ApplicationCommandOptionType.String, description: 'Veredicto final de Pepo', required: true }
+        { name: 'resumen', type: ApplicationCommandOptionType.String, description: 'Veredicto final de Pepo', required: true },
+        { name: 'positivo', type: ApplicationCommandOptionType.Integer, description: 'Porcentaje positivo (0 a 100)', required: false },
+        { name: 'lineart', type: ApplicationCommandOptionType.Integer, description: 'Lineart % (0 a 100)', required: false },
+        { name: 'creatividad', type: ApplicationCommandOptionType.Integer, description: 'Creatividad % (0 a 100)', required: false },
+        { name: 'detalles', type: ApplicationCommandOptionType.Integer, description: 'Detalles % (0 a 100)', required: false },
+        { name: 'paleta', type: ApplicationCommandOptionType.Integer, description: 'Paleta % (0 a 100)', required: false },
+        { name: 'pinceles', type: ApplicationCommandOptionType.Integer, description: 'Pinceles % (0 a 100)', required: false }
     ]
 };
 
@@ -146,14 +152,17 @@ client.once('ready', async () => {
     }
 });
 
-// --- RENDERIZADOR CANVAS (FONDO 100% COMPLETO) ---
-async function generarTarjetaCritica({ dibujoUrl, artistaNombre, loBueno, loMalo, resumen, fondoUrl }) {
+// --- RENDERIZADOR CANVAS (DISEÑO SEGÚN BOCETO DE PEPO) ---
+async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUrl, loBueno, loMalo, resumen, fondoUrl, positivoPct = 70, stats }) {
     const width = 1000;
     const height = 600;
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
 
-    // 1. Dibujar el fondo cubriendo todo el canvas
+    const posFinal = Math.max(0, Math.min(100, positivoPct));
+    const negativoPct = Math.max(0, Math.min(100, 100 - posFinal));
+
+    // 1. Fondo completo
     if (fondoUrl) {
         try {
             const fondoImg = await loadImage(fondoUrl);
@@ -167,50 +176,92 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, loBueno, loMalo
         ctx.fillRect(0, 0, width, height);
     }
 
-    // 2. Panel translúcido solo para la zona del texto a la derecha
+    // Capa translúcida general
     ctx.fillStyle = 'rgba(18, 18, 24, 0.82)';
-    ctx.roundRect(455, 25, 520, 550, 15);
+    ctx.roundRect(20, 20, width - 40, height - 40, 20);
     ctx.fill();
 
-    // 3. Dibujar la imagen/dibujo del artista
+    ctx.shadowColor = 'black';
+    ctx.shadowBlur = 6;
+
+    // A. IZQUIERDA ARRIBA: Dibujo del Artista
     try {
         const dibujoImg = await loadImage(dibujoUrl);
         ctx.save();
         ctx.beginPath();
-        ctx.roundRect(30, 30, 400, 540, 15);
+        ctx.roundRect(40, 40, 400, 370, 15);
         ctx.clip();
-        ctx.drawImage(dibujoImg, 30, 30, 400, 540);
+        ctx.drawImage(dibujoImg, 40, 40, 400, 370);
         ctx.restore();
     } catch (err) {
         console.error("Error al cargar dibujo:", err);
     }
 
-    // 4. Sombra para resaltar los textos perfectamente
-    ctx.shadowColor = 'black';
-    ctx.shadowBlur = 6;
+    // B. IZQUIERDA ABAJO: 2 Barras de Porcentaje (Positivo / Negativo)
+    const barX = 40;
+    const barY = 430;
+    const barWidth = 400;
+    const barHeight = 20;
 
+    // Label e Indicador Positivo
+    ctx.font = 'bold 15px Arial, sans-serif';
+    ctx.fillStyle = '#4CAF50';
+    ctx.fillText(`🟢 Positivo: ${posFinal}%`, barX, barY);
+    ctx.fillStyle = '#22252A';
+    ctx.roundRect(barX, barY + 6, barWidth, barHeight, 8);
+    ctx.fill();
+    ctx.fillStyle = '#4CAF50';
+    ctx.roundRect(barX, barY + 6, (barWidth * posFinal) / 100, barHeight, 8);
+    ctx.fill();
+
+    // Label e Indicador Negativo
+    ctx.fillStyle = '#FF5252';
+    ctx.fillText(`🔴 Negativo: ${negativoPct}%`, barX, barY + 48);
+    ctx.fillStyle = '#22252A';
+    ctx.roundRect(barX, barY + 54, barWidth, barHeight, 8);
+    ctx.fill();
+    ctx.fillStyle = '#FF5252';
+    ctx.roundRect(barX, barY + 54, (barWidth * negativoPct) / 100, barHeight, 8);
+    ctx.fill();
+
+    // C. DERECHA ARRIBA: Avatar + Nombre del Artista
     ctx.fillStyle = '#FFD700';
-    ctx.font = 'bold 24px sans-serif';
-    ctx.fillText(`🎨 EVALUACIÓN: @${artistaNombre}`, 480, 75);
+    ctx.font = 'bold 22px Arial, sans-serif';
+    ctx.fillText(`🎨 @${artistaNombre}`, 470, 75);
+
+    try {
+        if (artistaAvatarUrl) {
+            const avatarImg = await loadImage(artistaAvatarUrl);
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(920, 70, 35, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.drawImage(avatarImg, 885, 35, 70, 70);
+            ctx.restore();
+        }
+    } catch (e) {
+        console.error("Error avatar:", e);
+    }
 
     ctx.strokeStyle = '#3A3A4A';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(480, 95);
-    ctx.lineTo(940, 95);
+    ctx.moveTo(470, 115);
+    ctx.lineTo(950, 115);
     ctx.stroke();
 
+    // D. TEXTO RESUMIDO (Lo fuerte, el freno, veredicto)
     const wrapText = (context, label, text, colorLabel, x, startY, maxWidth, lineHeight) => {
-        context.font = 'bold 20px sans-serif';
+        context.font = 'bold 16px Arial, sans-serif';
         context.fillStyle = colorLabel;
         context.fillText(label, x, startY);
         
-        context.font = '18px sans-serif';
+        context.font = '15px Arial, sans-serif';
         context.fillStyle = '#E2E2E8';
         
         const words = text.split(' ');
         let line = '';
-        let currentY = startY + 28;
+        let currentY = startY + 20;
 
         for (let n = 0; n < words.length; n++) {
             let testLine = line + words[n] + ' ';
@@ -224,12 +275,49 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, loBueno, loMalo
             }
         }
         context.fillText(line, x, currentY);
-        return currentY + 35;
+        return currentY + 25;
     };
 
-    let nextY = wrapText(ctx, '🟢 LO FUERTE:', loBueno, '#4EAE50', 480, 130, 470, 26);
-    nextY = wrapText(ctx, '🔴 EL FRENO:', loMalo, '#F44336', 480, nextY, 470, 26);
-    wrapText(ctx, '⚡ VEREDICTO DE PEPO:', resumen, '#FFC107', 480, nextY, 470, 26);
+    let nextY = wrapText(ctx, '🟢 LO FUERTE:', loBueno, '#4CAF50', 470, 140, 470, 20);
+    nextY = wrapText(ctx, '🔴 EL FRENO:', loMalo, '#FF5252', 470, nextY, 470, 20);
+    nextY = wrapText(ctx, '⚡ VEREDICTO:', resumen, '#FFD700', 470, nextY, 470, 20);
+
+    // E. DERECHA ABAJO: GRÁFICA DE BARRAS VERTICALES (Lineart, Creatividad, Detalles, Paleta, Pinceles)
+    const graphYBase = 540;
+    const graphMaxHeight = 110;
+    const startX = 480;
+    const barGap = 98;
+    const colWidth = 28;
+
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 16px Arial, sans-serif';
+    ctx.fillText('📊 ANÁLISIS DE HABILIDADES:', 470, Math.max(nextY + 10, 385));
+
+    stats.forEach((item, index) => {
+        const x = startX + (index * barGap);
+        const val = Math.max(0, Math.min(100, item.val));
+        const currentBarHeight = (graphMaxHeight * val) / 100;
+
+        // Fondo barra vertical
+        ctx.fillStyle = '#22252A';
+        ctx.roundRect(x, graphYBase - graphMaxHeight, colWidth, graphMaxHeight, 6);
+        ctx.fill();
+
+        // Relleno barra vertical
+        ctx.fillStyle = '#00E676';
+        ctx.roundRect(x, graphYBase - currentBarHeight, colWidth, currentBarHeight, 6);
+        ctx.fill();
+
+        // Porcentaje arriba
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 12px Arial, sans-serif';
+        ctx.fillText(`${val}%`, x - 2, graphYBase - currentBarHeight - 6);
+
+        // Nombre de la casilla abajo
+        ctx.fillStyle = '#AAAAAA';
+        ctx.font = 'bold 11px Arial, sans-serif';
+        ctx.fillText(item.nombre, x - 10, graphYBase + 20);
+    });
 
     return canvas.toBuffer('image/png');
 }
@@ -382,7 +470,7 @@ client.on('interactionCreate', async (interaction) => {
                     userXpData.cartelEquipado = nombreId;
                     await userXpData.save();
 
-                    return await interaction.editReply(`🎁 ¡Fondo **${nombreId}** regalado y equipado a <@${usuarioEspecial.id}>!\n🖼️ URL: ${imagen.url}`);
+                                        return await interaction.editReply(`🎁 ¡Fondo **${nombreId}** regalado y equipado a <@${usuarioEspecial.id}>!\n🖼️ URL: ${imagen.url}`);
                 }
 
                 let modoTxt = '';
@@ -418,6 +506,15 @@ client.on('interactionCreate', async (interaction) => {
                 const loBueno = interaction.options.getString('lo_bueno');
                 const loMalo = interaction.options.getString('lo_malo');
                 const resumen = interaction.options.getString('resumen');
+                const positivoPct = interaction.options.getInteger('positivo') ?? 70;
+
+                const stats = [
+                    { nombre: 'Lineart', val: interaction.options.getInteger('lineart') ?? 80 },
+                    { nombre: 'Creatividad', val: interaction.options.getInteger('creatividad') ?? 85 },
+                    { nombre: 'Detalles', val: interaction.options.getInteger('detalles') ?? 75 },
+                    { nombre: 'Paleta', val: interaction.options.getInteger('paleta') ?? 90 },
+                    { nombre: 'Pinceles', val: interaction.options.getInteger('pinceles') ?? 70 }
+                ];
 
                 let datosArtista = await UserXP.findOne({ userId: artista.id, guildId: interaction.guild.id });
                 const nombreCartel = datosArtista?.cartelEquipado;
@@ -431,10 +528,13 @@ client.on('interactionCreate', async (interaction) => {
                 const bufferFicha = await generarTarjetaCritica({
                     dibujoUrl: foto.url,
                     artistaNombre: artista.username,
+                    artistaAvatarUrl: artista.displayAvatarURL({ extension: 'png', size: 256 }),
                     loBueno,
                     loMalo,
                     resumen,
-                    fondoUrl: urlFondoUsar
+                    fondoUrl: urlFondoUsar,
+                    positivoPct,
+                    stats
                 });
 
                 const attachment = new AttachmentBuilder(bufferFicha, { name: `critica_${artista.username}.png` });
@@ -464,7 +564,7 @@ client.on('interactionCreate', async (interaction) => {
             let userXpData = await UserXP.findOne({ userId, guildId });
             if (!userXpData) userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
 
-                        let xpTotalActual = userXpData.xp + (userXpData.level - 1) * 100;
+            let xpTotalActual = userXpData.xp + (userXpData.level - 1) * 100;
 
             if (opcion.startsWith('comprar_bg_')) {
                 const nombreBg = opcion.replace('comprar_bg_', '');
@@ -480,7 +580,7 @@ client.on('interactionCreate', async (interaction) => {
 
                 if (!userXpData.cartelesComprados) userXpData.cartelesComprados = [];
                 if (userXpData.cartelesComprados.includes(nombreBg)) {
-                    userXpData.cartelEquipado = nombreBg;
+                                        userXpData.cartelEquipado = nombreBg;
                     await userXpData.save();
                     return await interaction.editReply(`Ya tenías este fondo. Te lo hemos **equipado**.`);
                 }
