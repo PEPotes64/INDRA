@@ -41,6 +41,15 @@ const packSchema = new mongoose.Schema({
 });
 const Pack = mongoose.models.Pack || mongoose.model('Pack', packSchema);
 
+const tablaSchema = new mongoose.Schema({
+    guildId: String,
+    nombreId: String,
+    urlImagen: String,
+    precio: { type: Number, default: null },
+    nivelMinimo: { type: Number, default: null }
+});
+const Tabla = mongoose.models.Tabla || mongoose.model('Tabla', tablaSchema);
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -189,6 +198,17 @@ const dataSetPack = {
     ]
 };
 
+const dataTabla = {
+    name: 'settabla',
+    description: 'Sube/asigna una tabla o marco translúcido a MongoDB (Exclusivo Pepo)',
+    options: [
+        { name: 'nombre', type: ApplicationCommandOptionType.String, description: 'Nombre ID de la tabla', required: true },
+        { name: 'url', type: ApplicationCommandOptionType.String, description: 'URL de la imagen o textura', required: true },
+        { name: 'precio', type: ApplicationCommandOptionType.Integer, description: 'Precio en XP', required: false },
+        { name: 'nivel', type: ApplicationCommandOptionType.Integer, description: 'Nivel mínimo', required: false }
+    ]
+};
+
 client.once('ready', async () => {
     console.log(`Bot prendido como ${client.user.tag}! Zeus ya anda zumbando > :v`);
 
@@ -221,6 +241,7 @@ client.once('ready', async () => {
         await client.application.commands.create(dataDelBg);
         await client.application.commands.create(dataSetFont);
         await client.application.commands.create(dataSetPack);
+        await client.application.commands.create(dataTabla);
         console.log('Comandos listos compa > :v');
     } catch (error) {
         console.error('Error con los comandos:', error);
@@ -302,24 +323,33 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
         ctx.fillRect(0, 0, width, height);
     }
 
-    // --- AHORA (Textura Liquid Glass / Marco personalizado) ---
 try {
-    // Pegás aquí el URL de tu textura PNG (el vidrio líquido)
-    const urlTexturaMarco = 'https://tu-link-de-imagen.com/liquid_glass.png'; 
-    const imgMarco = await loadImage(urlTexturaMarco);
-    
-    // Dibujamos el marco con opacidad suave para que no tape todo
-    ctx.globalAlpha = 0.85; // Ajustás qué tan transparente querés el vidrio
-    ctx.drawImage(imgMarco, 20, 20, width - 40, height - 40);
-    ctx.globalAlpha = 1.0;  // Restauramos la opacidad normal para los textos y gráficos
+    let tablaUrl = null;
+    if (userXpData?.tablaEquipada) {
+        const tablaObj = await Tabla.findOne({ guildId: interaction.guild.id, nombreId: userXpData.tablaEquipada });
+        if (tablaObj) tablaUrl = tablaObj.urlImagen;
+    }
+
+    if (tablaUrl) {
+        const imgTabla = await loadImage(tablaUrl);
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(20, 20, width - 40, height - 40, 20);
+        ctx.clip();
+        ctx.globalAlpha = 0.45; // 👈 Opacidad automática para cualquier imagen que subas
+        ctx.drawImage(imgTabla, 20, 20, width - 40, height - 40);
+        ctx.restore();
+    } else {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.60)';
+        ctx.roundRect(20, 20, width - 40, height - 40, 20);
+        ctx.fill();
+    }
 } catch (e) {
-    console.error("Error cargando textura del marco, usando fallback:", e);
-    // Fallback por si falla el link: dibuja el rectángulo oscuro de siempre
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+    console.error("Error al renderizar la tabla translúcida:", e);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.60)';
     ctx.roundRect(20, 20, width - 40, height - 40, 20);
     ctx.fill();
-}
-    
+}   
 
     // B. DIBUJO DEL ARTISTA (Cuadro seguro de 400x370)
     if (dibujoUrl) {
@@ -690,6 +720,13 @@ client.on('interactionCreate', async interaction => {
             const nombresPacksGratis = [...packsGratisLvl, ...packsPredeterminados].map(p => p.nombreId);
             const todosMisPacks = [...new Set([...nombresPacksGratis, ...packsComprados])];
 
+            // --- D. TABLAS ---
+const tablasCompradas = userXpData?.tablasCompradas || [];
+const tablasGratisLvl = await Tabla.find({ guildId, precio: null, nivelMinimo: { $ne: null,$lte: nivelUsuario } });
+const tablasPredeterminadas = await Tabla.find({ guildId, precio: null, nivelMinimo: null });
+const nombresTablasGratis = [...tablasGratisLvl, ...tablasPredeterminadas].map(t => t.nombreId);
+const todasMisTablas = [...new Set([...nombresTablasGratis, ...tablasCompradas])];
+
             const perfilEmbed = new EmbedBuilder()
                 .setColor('#0b50b6')
                 .setTitle(`🎨 Armario Cosmético de ${interaction.user.username}`)
@@ -697,6 +734,8 @@ client.on('interactionCreate', async interaction => {
                 .addFields(
                     { name: '🖼️ Fondo Equipado:', value: `\`${userXpData?.cartelEquipado || 'Ninguno'}\``, inline: true },
                     { name: '🔤 Fuente Equipada:', value: `\`${userXpData?.fuenteEquipada || 'Predeterminada'}\``, inline: true }
+                    { name: '🪞 Tabla Equipada:', value: `\`${userXpData?.tablaEquipada || 'Predeterminada'}\``, inline: true }
+            
                 )
                 .setFooter({ text: 'Zeus Armario', iconURL: client.user.displayAvatarURL() });
 
@@ -729,6 +768,15 @@ client.on('interactionCreate', async interaction => {
                 componentes.push(new ActionRowBuilder().addComponents(menuPacks));
             }
 
+            if (todasMisTablas.length > 0) {
+    const menuTablas = new StringSelectMenuBuilder()
+        .setCustomId('equipar_tabla_menu')
+        .setPlaceholder('🪞 Elegí una Tabla para equipar...')
+        .addOptions(todasMisTablas.map(t => ({ label: `Tabla: ${t}`, value: `equipar_tabla_${t}`, emoji: '🪞' })));
+    componentes.push(new ActionRowBuilder().addComponents(menuTablas));
+                
+            }
+            
             return await interaction.editReply({ embeds: [perfilEmbed], components: componentes });
         } catch (err) {
             console.error("Error en /perfil:", err);
@@ -1243,6 +1291,18 @@ client.on('interactionCreate', async interaction => {
 
                 return await interaction.editReply(`📦 ¡Compraste y equipaste el pack combo **${packId}** con éxito!`);
             }
+
+            if (customId === 'equipar_tabla_menu') {
+    await interaction.deferReply({ ephemeral: true });
+    const tablaId = values[0].replace('equipar_tabla_', '');
+    let userXpData = await UserXP.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
+    if (!userXpData) userXpData = new UserXP({ userId: interaction.user.id, guildId: interaction.guild.id });
+
+    userXpData.tablaEquipada = tablaId;
+    await userXpData.save();
+    return await interaction.editReply(`🪞 ¡Te equipaste la tabla **${tablaId}** con éxito!`);
+                
+            }   
 
         } catch (err) {
             console.error("Clavo en la tienda:", err);
