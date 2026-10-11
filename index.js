@@ -303,7 +303,7 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
     }
 
     // Capa translúcida general (Negro suave al 65% para resaltar el fondo)
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.50)';
     ctx.roundRect(20, 20, width - 40, height - 40, 20);
     ctx.fill();
 
