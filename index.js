@@ -281,7 +281,7 @@ const verificarCooldown = (ultimaFecha) => {
     return null;
 };
 
-// --- RENDERIZADOR CANVAS A PRUEBA DE FALLOS ---
+// --- RENDERIZADOR CANVAS COMPLETO Y BLINDADO ---
 async function generarTarjetaCritica({ 
     dibujoUrl, 
     artistaNombre, 
@@ -299,6 +299,8 @@ async function generarTarjetaCritica({
     const height = 600;
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
+    
+    // Nombre de fuente con fallback seguro
     const fontName = fuenteNombre ? fuenteNombre : 'sans-serif';
     const fontMain = `"${fontName}", sans-serif`;
 
@@ -308,27 +310,34 @@ async function generarTarjetaCritica({
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
 
-    // A. Fondo de pantalla con manejo blindado de errores
+    // --- A. FONDO DE PANTALLA ---
+    let fondoCargado = false;
     if (fondoUrl) {
         try {
             const resBg = await fetch(fondoUrl);
-            if (!resBg.ok) throw new Error(`HTTP error! status: ${resBg.status}`);
-            const bufBg = Buffer.from(await resBg.arrayBuffer());
-            const fondoImg = await loadImage(bufBg);
-            ctx.drawImage(fondoImg, 0, 0, width, height);
-            console.log("🌅 Fondo renderizado con éxito en el Canvas.");
+            if (resBg.ok) {
+                const bufBg = Buffer.from(await resBg.arrayBuffer());
+                const fondoImg = await loadImage(bufBg);
+                ctx.drawImage(fondoImg, 0, 0, width, height);
+                fondoCargado = true;
+            }
         } catch (e) {
-            console.error("❌ Error al cargar el fondo en el Canvas:", e);
-            ctx.fillStyle = '#121216';
-            ctx.fillRect(0, 0, width, height);
+            console.error("❌ Error al cargar fondo:", e);
         }
-    } else {
-        ctx.fillStyle = '#121216';
+    }
+
+    if (!fondoCargado) {
+        // Fondo degradado oscuro elegante si no hay imagen de fondo
+        const grad = ctx.createLinearGradient(0, 0, width, height);
+        grad.addColorStop(0, '#1a1c23');
+        grad.addColorStop(1, '#0d0e12');
+        ctx.fillStyle = grad;
         ctx.fillRect(0, 0, width, height);
     }
 
+    // --- B. TABLA / MARCO CONTENEDOR ---
     ctx.save();
-    ctx.fillStyle = 'rgba(20, 20, 25, 0.65)';
+    ctx.fillStyle = 'rgba(20, 20, 25, 0.75)';
     ctx.beginPath();
     ctx.roundRect(20, 20, width - 40, height - 40, 20);
     ctx.fill();
@@ -340,23 +349,25 @@ async function generarTarjetaCritica({
     if (tablaUrl) {
         try {
             const resTabla = await fetch(tablaUrl);
-            if (!resTabla.ok) throw new Error(`HTTP error! status: ${resTabla.status}`);
-            const bufTabla = Buffer.from(await resTabla.arrayBuffer());
-            const imgTabla = await loadImage(bufTabla);
+            if (resTabla.ok) {
+                const bufTabla = Buffer.from(await resTabla.arrayBuffer());
+                const imgTabla = await loadImage(bufTabla);
 
-            ctx.save();
-            ctx.translate(width / 2, height / 2);
-            ctx.rotate((90 * Math.PI) / 180);
-            ctx.globalCompositeOperation = 'screen';
-            ctx.globalAlpha = 0.95;
-            ctx.drawImage(imgTabla, -height / 2, -width / 2, height, width);
-            ctx.restore();
+                ctx.save();
+                ctx.translate(width / 2, height / 2);
+                ctx.rotate((90 * Math.PI) / 180);
+                ctx.globalCompositeOperation = 'screen';
+                ctx.globalAlpha = 0.95;
+                ctx.drawImage(imgTabla, -height / 2, -width / 2, height, width);
+                ctx.restore();
+            }
         } catch (e) {
-            console.error("❌ Error al cargar la tabla liquid glass:", e);
+            console.error("Error al cargar la tabla:", e);
         }
     }
     ctx.restore();
 
+    // --- C. DIBUJO DEL ARTISTA ---
     if (dibujoUrl) {
         try {
             const resDibujo = await fetch(dibujoUrl);
@@ -368,12 +379,161 @@ async function generarTarjetaCritica({
                 ctx.restore();
             }
         } catch (errDibujo) {
-            console.error("❌ Error al cargar la imagen del dibujo:", errDibujo);
+            console.error("Error al cargar el dibujo:", errDibujo);
         }
     }
 
-    // (El resto de las barras, textos y estadísticas siguen exactamente igual...)
-    // ...
+    // --- D. BARRAS DE PORCENTAJE (POSITIVO / NEGATIVO) ---
+    const barX = 40;
+    const barWidth = 400;
+    const barHeight = 16;
+
+    // 1. Positivo
+    const barYPos = 430;
+    ctx.font = `bold 14px ${fontMain}`;
+    ctx.fillStyle = '#4CAF50';
+    ctx.fillText(`🟢 Positivo: ${posFinal}%`, barX, barYPos);
+
+    ctx.fillStyle = '#1E232A';
+    ctx.beginPath();
+    ctx.roundRect(barX, barYPos + 6, barWidth, barHeight, 6);
+    ctx.fill();
+
+    if (posFinal > 0) {
+        const wVerde = (barWidth * posFinal) / 100;
+        ctx.fillStyle = '#4CAF50';
+        ctx.beginPath();
+        ctx.roundRect(barX, barYPos + 6, wVerde, barHeight, 6);
+        ctx.fill();
+    }
+
+    // 2. Negativo
+    const barYNeg = 480;
+    ctx.fillStyle = '#FF5252';
+    ctx.fillText(`🔴 Negativo: ${negativoPct}%`, barX, barYNeg);
+
+    ctx.fillStyle = '#1E232A';
+    ctx.beginPath();
+    ctx.roundRect(barX, barYNeg + 6, barWidth, barHeight, 6);
+    ctx.fill();
+
+    if (negativoPct > 0) {
+        const wRojo = (barWidth * negativoPct) / 100;
+        ctx.fillStyle = '#FF5252';
+        ctx.beginPath();
+        ctx.roundRect(barX, barYNeg + 6, wRojo, barHeight, 6);
+        ctx.fill();
+    }
+
+    // --- E. AVATAR + NOMBRE DEL ARTISTA ---
+    ctx.fillStyle = '#FFD700';
+    ctx.font = `bold 22px ${fontMain}`;
+    ctx.fillText(`🎨 @${artistaNombre}`, 470, 75);
+
+    try {
+        if (artistaAvatarUrl) {
+            const resAvatar = await fetch(artistaAvatarUrl);
+            if (resAvatar.ok) {
+                const bufAvatar = Buffer.from(await resAvatar.arrayBuffer());
+                const avatarImg = await loadImage(bufAvatar);
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(920, 70, 35, 0, Math.PI * 2);
+                ctx.clip();
+                ctx.drawImage(avatarImg, 885, 35, 70, 70);
+                ctx.restore();
+            }
+        }
+    } catch (e) {
+        console.error("Error avatar en canvas:", e);
+    }
+
+    ctx.strokeStyle = '#3A3A4A';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(470, 115);
+    ctx.lineTo(950, 115);
+    ctx.stroke();
+
+    // --- F. TEXTOS DE LA CRÍTICA ---
+    const wrapText = (context, label, text, colorLabel, x, startY, maxWidth, lineHeight) => {
+        context.font = `bold 16px ${fontMain}`;
+        context.fillStyle = colorLabel;
+        context.fillText(label, x, startY);
+
+        context.font = `15px ${fontMain}`;
+        context.fillStyle = '#E2E2E8';
+
+        const words = (text || 'N/A').split(' ');
+        let line = '';
+        let currentY = startY + 20;
+
+        for (let n = 0; n < words.length; n++) {
+            let testLine = line + words[n] + ' ';
+            let metrics = context.measureText(testLine);
+            if (metrics.width > maxWidth && n > 0) {
+                context.fillText(line, x, currentY);
+                line = words[n] + ' ';
+                currentY += lineHeight;
+            } else {
+                line = testLine;
+            }
+        }
+        context.fillText(line, x, currentY);
+        return currentY + 25;
+    };
+
+    let nextY = wrapText(ctx, '🟢 LO FUERTE:', loBueno, '#4CAF50', 470, 145, 480, 20);
+    nextY = wrapText(ctx, '🔴 EL FRENO:', loMalo, '#FF5252', 470, nextY, 480, 20);
+    nextY = wrapText(ctx, '📜 VEREDICTO:', resumen, '#FFB700', 470, nextY, 480, 20);
+
+    // --- G. BARRAS MULTICOLOR DE HABILIDADES ---
+    const graphYBase = 530;
+    const graphMaxHeight = 100;
+    const startX = 480;
+    const barGap = 90;
+    const colWidth = 28;
+
+    ctx.fillStyle = '#FFD700';
+    ctx.font = `bold 16px ${fontMain}`;
+    ctx.fillText('📊 ANÁLISIS DE HABILIDADES:', 470, Math.max(nextY + 10, 330));
+
+    const obtenerColorRango = (porcentaje) => {
+        if (porcentaje < 30) return '#FF5252';
+        if (porcentaje < 50) return '#FFB700';
+        if (porcentaje < 75) return '#00E676';
+        if (porcentaje < 90) return '#00E5FF';
+        return '#D500F9';
+    };
+
+    stats.forEach((item, index) => {
+        const x = startX + (index * barGap);
+        const val = Math.max(0, Math.min(100, item.val ?? 50));
+        const currentBarHeight = (graphMaxHeight * val) / 100;
+        const colorBarra = obtenerColorRango(val);
+
+        ctx.fillStyle = '#1E232A';
+        ctx.beginPath();
+        ctx.roundRect(x, graphYBase - graphMaxHeight, colWidth, graphMaxHeight, 8);
+        ctx.fill();
+
+        if (val > 0) {
+            ctx.fillStyle = colorBarra;
+            ctx.beginPath();
+            ctx.roundRect(x, graphYBase - currentBarHeight, colWidth, currentBarHeight, 8);
+            ctx.fill();
+        }
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = `bold 12px ${fontMain}`;
+        ctx.fillText(`${val}%`, x - 2, graphYBase - (val > 0 ? currentBarHeight : 0) - 8);
+
+        ctx.fillStyle = '#AAAAAA';
+        ctx.font = `bold 11px ${fontMain}`;
+        ctx.fillText(item.nombre, x - 10, graphYBase + 20);
+    });
+
     return canvas.toBuffer('image/png');
 }
 
