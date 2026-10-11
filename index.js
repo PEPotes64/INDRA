@@ -230,21 +230,19 @@ client.once('ready', async () => {
     }
 
     try {
-        await client.application.commands.create(dataAddXp);
-        await client.application.commands.create(dataQuitarXp);
-        await client.application.commands.create(dataVerXp);
-        await client.application.commands.create(dataTop);
-        await client.application.commands.create(dataComprar);
-        await client.application.commands.create(dataPerfil);
-        await client.application.commands.create(dataCritica);
-        await client.application.commands.create(dataSetBg);
-        await client.application.commands.create(dataDelBg);
-        await client.application.commands.create(dataSetFont);
-        await client.application.commands.create(dataSetPack);
-        await client.application.commands.create(dataTabla);
-        console.log('Comandos listos compa > :v');
-    } catch (error) {
-        console.error('Error con los comandos:', error);
+    const guildTarget = client.guilds.cache.get('1336314516333658164');
+    if (guildTarget) {
+        await guildTarget.commands.set([
+            dataAddXp, dataQuitarXp, dataVerXp, dataTop, dataComprar, 
+            dataPerfil, dataCritica, dataSetBg, dataDelBg, dataSetFont, 
+            dataSetPack, dataTabla
+        ]);
+        console.log('¡Comandos instantáneos listos en el server compa > :v!');
+    }
+} catch (error) {
+    console.error('Error cargando comandos en el server:', error);
+    }
+    
     }
 });
 
