@@ -1326,6 +1326,7 @@ client.on('interactionCreate', async interaction => {
 
             return await interaction.editReply(`🪞 ¡Compraste y equipaste la tabla **${tablaId}** con éxito!`);
         }
+            
 
             if (customId === 'equipar_tabla_menu') {
     await interaction.deferReply({ ephemeral: true });
@@ -1383,30 +1384,6 @@ client.on('interactionCreate', async interaction => {
         await userXpData.save();
         return await interaction.editReply(`📦 ¡Te equipaste el pack **${packId}** (Fondo: \`${packObj.fondoNombreId}\` + Fuente: \`${packObj.fuenteNombreId}\`)!`);
     }
-
-            if (customId.startsWith('comprar_tabla_')) {
-            await interaction.deferReply({ ephemeral: true });
-            const tablaId = customId.replace('comprar_tabla_', '');
-            const tablaObj = await Tabla.findOne({ guildId, nombreId: tablaId });
-
-            if (!tablaObj) return await interaction.editReply('❌ La tabla ya no existe.');
-            if (tablaObj.nivelMinimo && userXpData.level < tablaObj.nivelMinimo) {
-                return await interaction.editReply(`❌ Requerís **Nivel ${tablaObj.nivelMinimo}** para comprar esta tabla.`);
-            }
-            if (xpTotalActual < tablaObj.precio) {
-                return await interaction.editReply(`❌ Necesitás **${tablaObj.precio} XP** para comprar esta tabla.`);
-            }
-
-            recalcularProgreso(userXpData, xpTotalActual - tablaObj.precio);
-            if (!userXpData.tablasCompradas) userXpData.tablasCompradas = [];
-            if (!userXpData.tablasCompradas.includes(tablaId)) userXpData.tablasCompradas.push(tablaId);
-
-            userXpData.tablaEquipada = tablaId;
-            await userXpData.save();
-
-            return await interaction.editReply(`🪞 ¡Compraste y equipaste la tabla **${tablaId}** con éxito!`);
-            }
-    
     
 });
 
