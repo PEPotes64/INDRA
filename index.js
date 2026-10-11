@@ -268,21 +268,25 @@ const verificarCooldown = (ultimaFecha) => {
 };
 
 // --- MANEJADOR DE INTERACCIONES (COMANDOS SLASH) ---
-// --- RENDERIZADOR CANVAS (TARJETA CRÍTICA) ---
+
+// --- RENDERIZADOR CANVAS (TARJETA CRÍTICA CORREGIDA) ---
 async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUrl, loBueno, loMalo, resumen, fondoUrl, positivoPct, stats, fuenteNombre }) {
     const width = 1000;
     const height = 600;
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
 
-    const fontFamily = fuenteNombre ? `"${fuenteNombre}", sans-serif` : 'sans-serif';
-    const posFinal = Math.max(0, Math.min(100, positivoPct));
+    // Nombre de fuente con fallback seguro
+    const fontName = fuenteNombre ? fuenteNombre : 'sans-serif';
+    const fontMain = `"${fontName}", sans-serif`;
+
+    const posFinal = Math.max(0, Math.min(100, positivoPct ?? 70));
     const negativoPct = Math.max(0, Math.min(100, 100 - posFinal));
 
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
 
-    // A. Fondo
+    // A. Fondo de pantalla
     if (fondoUrl) {
         try {
             const resBg = await fetch(fondoUrl);
@@ -303,26 +307,31 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
     ctx.roundRect(20, 20, width - 40, height - 40, 20);
     ctx.fill();
 
-    // B. DIBUJO DEL ARTISTA
-    try {
-        const resDibujo = await fetch(dibujoUrl);
-        const bufferDibujo = Buffer.from(await resDibujo.arrayBuffer());
-        const dibujoImg = await loadImage(bufferDibujo);
+    // B. DIBUJO DEL ARTISTA (Procesamiento seguro)
+    if (dibujoUrl) {
+        try {
+            const resDibujo = await fetch(dibujoUrl);
+            const bufferDibujo = Buffer.from(await resDibujo.arrayBuffer());
+            const dibujoImg = await loadImage(bufferDibujo);
 
-        ctx.save();
-        ctx.beginPath();
-        ctx.roundRect(40, 40, 400, 370, 15);
-        ctx.clip();
-        ctx.drawImage(dibujoImg, 40, 40, 400, 370);
-        ctx.restore();
-    } catch (err) {
-        console.error("Error al cargar dibujo:", err);
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(40, 40, 400, 370, 15);
+            ctx.clip();
+            ctx.drawImage(dibujoImg, 40, 40, 400, 370);
+            ctx.restore();
+        } catch (err) {
+            console.error("Error al cargar dibujo en canvas:", err);
+            ctx.fillStyle = '#222';
+            ctx.roundRect(40, 40, 400, 370, 15);
+            ctx.fill();
+        }
     }
 
-    // C. BARRAS DE PORCENTAJE
+    // C. BARRAS DE PORCENTAJE (POSITIVO / NEGATIVO)
     const barX = 40, barY = 430, barWidth = 400, barHeight = 20;
 
-    ctx.font = `bold 15px ${fontFamily}`;
+    ctx.font = `bold 15px ${fontMain}`;
     ctx.fillStyle = '#4CAF50';
     ctx.fillText(`🟢 Positivo: ${posFinal}%`, barX, barY);
 
@@ -353,8 +362,8 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
 
     // D. AVATAR + NOMBRE DEL ARTISTA
     ctx.fillStyle = '#FFD700';
-    ctx.font = `bold 22px ${fontFamily}`;
-    ctx.fillText(`🎨 ${artistaNombre}`, 470, 75);
+    ctx.font = `bold 22px ${fontMain}`;
+    ctx.fillText(`🎨 @${artistaNombre}`, 470, 75);
 
     try {
         if (artistaAvatarUrl) {
@@ -370,7 +379,7 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
             ctx.restore();
         }
     } catch (e) {
-        console.error("Error avatar:", e);
+        console.error("Error avatar en canvas:", e);
     }
 
     ctx.strokeStyle = '#3A3A4A';
@@ -382,14 +391,14 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
 
     // E. TEXTOS DE LA CRÍTICA
     const wrapText = (context, label, text, colorLabel, x, startY, maxWidth, lineHeight) => {
-        context.font = `bold 16px ${fontFamily}`;
+        context.font = `bold 16px ${fontMain}`;
         context.fillStyle = colorLabel;
         context.fillText(label, x, startY);
 
-        context.font = `15px ${fontFamily}`;
+        context.font = `15px ${fontMain}`;
         context.fillStyle = '#E2E2E8';
 
-        const words = (text || '').split(' ');
+        const words = (text || 'N/A').split(' ');
         let line = '';
         let currentY = startY + 20;
 
@@ -412,7 +421,7 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
     nextY = wrapText(ctx, '🔴 EL FRENO:', loMalo, '#FF5252', 470, nextY, 480, 20);
     nextY = wrapText(ctx, '📜 VEREDICTO:', resumen, '#FFB700', 470, nextY, 480, 20);
 
-    // F. STATS INDIVIDUALES (Pinceles, Lineart, etc.)
+    // F. BARRAS MULTICOLOR DE HABILIDADES (Lineart, Creatividad, etc.)
     const graphYBase = 530;
     const graphMaxHeight = 100;
     const startX = 480;
@@ -420,27 +429,31 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
     const colWidth = 28;
 
     ctx.fillStyle = '#FFD700';
-    ctx.font = `bold 16px ${fontFamily}`;
+    ctx.font = `bold 16px ${fontMain}`;
     ctx.fillText('📊 ANÁLISIS DE HABILIDADES:', 470, Math.max(nextY + 10, 330));
 
+    // Colores vivos por nivel de porcentaje
     const obtenerColorRango = (porcentaje) => {
-        if (porcentaje < 70) return '#A10E20';
-        if (porcentaje < 80) return '#A00BDB';
-        if (porcentaje < 90) return '#A003FF';
-        return '#FFFFFF';
+        if (porcentaje < 30) return '#FF5252'; // Rojo
+        if (porcentaje < 50) return '#FFB700'; // Naranja / Amarillo
+        if (porcentaje < 75) return '#00E676'; // Verde brillante
+        if (porcentaje < 90) return '#00E5FF'; // Cian
+        return '#D500F9';                     // Morado / Rosa
     };
 
     stats.forEach((item, index) => {
         const x = startX + (index * barGap);
-        const val = Math.max(0, Math.min(100, item.val));
+        const val = Math.max(0, Math.min(100, item.val ?? 50));
         const currentBarHeight = (graphMaxHeight * val) / 100;
         const colorBarra = obtenerColorRango(val);
 
+        // Fondo oscuro de la barra
         ctx.fillStyle = '#1E232A';
         ctx.beginPath();
         ctx.roundRect(x, graphYBase - graphMaxHeight, colWidth, graphMaxHeight, 8);
         ctx.fill();
 
+        // Relleno coloreado
         if (val > 0) {
             ctx.fillStyle = colorBarra;
             ctx.beginPath();
@@ -448,18 +461,20 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
             ctx.fill();
         }
 
+        // Porcentaje arriba de la barra
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = `bold 12px ${fontFamily}`;
+        ctx.font = `bold 12px ${fontMain}`;
         ctx.fillText(`${val}%`, x - 2, graphYBase - (val > 0 ? currentBarHeight : 0) - 8);
 
+        // Nombre de la estadística abajo
         ctx.fillStyle = '#AAAAAA';
-        ctx.font = `bold 11px ${fontFamily}`;
+        ctx.font = `bold 11px ${fontMain}`;
         ctx.fillText(item.nombre, x - 10, graphYBase + 20);
     });
 
     return canvas.toBuffer('image/png');
 }
-
+                 
 // --- CHEQUEO AUTOMÁTICO DE ROLES POR NIVEL ---
 async function checkearRoles(member, nivelActual, guild) {
     try {
