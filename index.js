@@ -1408,7 +1408,6 @@ client.on('interactionCreate', async interaction => {
         }
         console.error("Error general en interacciones:", err);
     }
-});
 
 client.login(process.env.DISCORD_TOKEN);
         
