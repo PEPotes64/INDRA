@@ -302,8 +302,8 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
         ctx.fillRect(0, 0, width, height);
     }
 
-    // Capa translúcida general
-    ctx.fillStyle = 'rgba(18, 18, 24, 0.85)';
+    // Capa translúcida general (Negro suave al 65% para resaltar el fondo)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
     ctx.roundRect(20, 20, width - 40, height - 40, 20);
     ctx.fill();
 
@@ -645,7 +645,7 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // /perfil
+        // /perfil (Armario completo: Fondos, Fuentes y Packs)
     if (commandName === 'perfil') {
         try {
             await interaction.deferReply({ ephemeral: true });
@@ -654,47 +654,68 @@ client.on('interactionCreate', async interaction => {
 
             let userXpData = await UserXP.findOne({ userId, guildId });
             const nivelUsuario = userXpData ? userXpData.level : 1;
-            const compradosAsignados = userXpData?.cartelesComprados || [];
 
-            const desbloqueadosPorNivel = await Background.find({
-                guildId,
-                precio: null,
-                nivelMinimo: { $ne: null, $lte: nivelUsuario }
-            });
+            // --- A. FONDOS ---
+            const bgsComprados = userXpData?.cartelesComprados || [];
+            const bgsGratisLvl = await Background.find({ guildId, precio: null, nivelMinimo: { $ne: null, $lte: nivelUsuario } });
+            const bgsPredeterminados = await Background.find({ guildId, precio: null, nivelMinimo: null });
+            const nombresBgsGratis = [...bgsGratisLvl, ...bgsPredeterminados].map(b => b.nombreId);
+            const todosMisFondos = [...new Set([...nombresBgsGratis, ...bgsComprados])];
 
-            const predeterminados = await Background.find({
-                guildId,
-                precio: null,
-                nivelMinimo: null
-            });
+            // --- B. FUENTES ---
+            const fuentesCompradas = userXpData?.fuentesCompradas || [];
+            const fuentesGratisLvl = await Font.find({ guildId, precio: null, nivelMinimo: { $ne: null, $lte: nivelUsuario } });
+            const fuentesPredeterminadas = await Font.find({ guildId, precio: null, nivelMinimo: null });
+            const nombresFuentesGratis = [...fuentesGratisLvl, ...fuentesPredeterminados].map(f => f.nombreId);
+            const todasMisFuentes = [...new Set([...nombresFuentesGratis, ...fuentesCompradas])];
 
-            const nombresGratis = [...desbloqueadosPorNivel, ...predeterminados].map(b => b.nombreId);
-            const todosMisFondos = [...new Set([...nombresGratis, ...compradosAsignados])];
-
-            if (todosMisFondos.length === 0) {
-                return await interaction.editReply('Puchica maje, aún no tenés fondos disponibles.');
-            }
+            // --- C. PACKS ---
+            const packsComprados = userXpData?.packsComprados || [];
+            const packsGratisLvl = await Pack.find({ guildId, precio: null, nivelMinimo: { $ne: null, $lte: nivelUsuario } });
+            const packsPredeterminados = await Pack.find({ guildId, precio: null, nivelMinimo: null });
+            const nombresPacksGratis = [...packsGratisLvl, ...packsPredeterminados].map(p => p.nombreId);
+            const todosMisPacks = [...new Set([...nombresPacksGratis, ...packsComprados])];
 
             const perfilEmbed = new EmbedBuilder()
                 .setColor('#0b50b6')
-                .setTitle(`🎨 Armario de Cosméticos de ${interaction.user.username}`)
-                .setDescription('Elegí cuál de tus fondos guardados querés equiparte en tus fichas.')
-                .addFields({ name: '🖼️ Fondo Equipado Actual:', value: `\`${userXpData?.cartelEquipado || 'Ninguno'}\`` })
+                .setTitle(`🎨 Armario Cosmético de ${interaction.user.username}`)
+                .setDescription('Elegí y equipá tus cosméticos desbloqueados o comprados.')
+                .addFields(
+                    { name: '🖼️ Fondo Equipado:', value: `\`${userXpData?.cartelEquipado || 'Ninguno'}\``, inline: true },
+                    { name: '🔤 Fuente Equipada:', value: `\`${userXpData?.fuenteEquipada || 'Predeterminada'}\``, inline: true }
+                )
                 .setFooter({ text: 'Zeus Armario', iconURL: client.user.displayAvatarURL() });
 
-            const opcionesCarteles = todosMisFondos.map(c => ({
-                label: `Fondo: ${c}`,
-                value: `equipar_cartel_${c}`,
-                emoji: '🖼️'
-            }));
+            const componentes = [];
 
-            const menuCarteles = new StringSelectMenuBuilder()
-                .setCustomId('equipar_cartel_menu')
-                .setPlaceholder('Elegí un fondo para equipar...')
-                .addOptions(opcionesCarteles);
+            // Selector 1: Fondos
+            if (todosMisFondos.length > 0) {
+                const menuBgs = new StringSelectMenuBuilder()
+                    .setCustomId('equipar_cartel_menu')
+                    .setPlaceholder('🖼️ Elegí un Fondo para equipar...')
+                    .addOptions(todosMisFondos.map(c => ({ label: `Fondo: ${c}`, value: `equipar_cartel_${c}`, emoji: '🖼️' })));
+                componentes.push(new ActionRowBuilder().addComponents(menuBgs));
+            }
 
-            const fila = new ActionRowBuilder().addComponents(menuCarteles);
-            return await interaction.editReply({ embeds: [perfilEmbed], components: [fila] });
+            // Selector 2: Fuentes
+            if (todasMisFuentes.length > 0) {
+                const menuFonts = new StringSelectMenuBuilder()
+                    .setCustomId('equipar_fuente_menu')
+                    .setPlaceholder('🔤 Elegí una Fuente para equipar...')
+                    .addOptions(todasMisFuentes.map(f => ({ label: `Fuente: ${f}`, value: `equipar_fuente_${f}`, emoji: '🔤' })));
+                componentes.push(new ActionRowBuilder().addComponents(menuFonts));
+            }
+
+            // Selector 3: Packs
+            if (todosMisPacks.length > 0) {
+                const menuPacks = new StringSelectMenuBuilder()
+                    .setCustomId('equipar_pack_menu')
+                    .setPlaceholder('📦 Elegí un Pack Combo para equipar...')
+                    .addOptions(todosMisPacks.map(p => ({ label: `Pack Combo: ${p}`, value: `equipar_pack_${p}`, emoji: '📦' })));
+                componentes.push(new ActionRowBuilder().addComponents(menuPacks));
+            }
+
+            return await interaction.editReply({ embeds: [perfilEmbed], components: componentes });
         } catch (err) {
             console.error("Error en /perfil:", err);
             if (interaction.deferred) await interaction.editReply(`❌ Error al abrir perfil: \`${err.message}\``);
@@ -1190,6 +1211,46 @@ client.on('interactionCreate', async interaction => {
             return await interaction.editReply('❌ Puchica, algo trono feo al intentar hacer la compra.');
         }
     }
+
+        // --- MANEJADORES DE MENÚS DEL PERFIL (/perfil) ---
+    if (customId === 'equipar_cartel_menu') {
+        await interaction.deferReply({ ephemeral: true });
+        const cartelId = values[0].replace('equipar_cartel_', '');
+        let userXpData = await UserXP.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
+        if (!userXpData) userXpData = new UserXP({ userId: interaction.user.id, guildId: interaction.guild.id });
+
+        userXpData.cartelEquipado = cartelId;
+        await userXpData.save();
+        return await interaction.editReply(`🖼️ ¡Te equipaste el fondo **${cartelId}** con éxito!`);
+    }
+
+    if (customId === 'equipar_fuente_menu') {
+        await interaction.deferReply({ ephemeral: true });
+        const fuenteId = values[0].replace('equipar_fuente_', '');
+        let userXpData = await UserXP.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
+        if (!userXpData) userXpData = new UserXP({ userId: interaction.user.id, guildId: interaction.guild.id });
+
+        userXpData.fuenteEquipada = fuenteId;
+        await userXpData.save();
+        return await interaction.editReply(`🔤 ¡Te equipaste la fuente **${fuenteId}** con éxito!`);
+    }
+
+    if (customId === 'equipar_pack_menu') {
+        await interaction.deferReply({ ephemeral: true });
+        const packId = values[0].replace('equipar_pack_', '');
+        const packObj = await Pack.findOne({ guildId: interaction.guild.id, nombreId: packId });
+
+        if (!packObj) return await interaction.editReply('❌ El pack ya no existe.');
+
+        let userXpData = await UserXP.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
+        if (!userXpData) userXpData = new UserXP({ userId: interaction.user.id, guildId: interaction.guild.id });
+
+        userXpData.cartelEquipado = packObj.fondoNombreId;
+        userXpData.fuenteEquipada = packObj.fuenteNombreId;
+        await userXpData.save();
+        return await interaction.editReply(`📦 ¡Te equipaste el pack **${packId}** (Fondo: \`${packObj.fondoNombreId}\` + Fuente: \`${packObj.fuenteNombreId}\`)!`);
+    }
+    
 });
 
 client.login(process.env.DISCORD_TOKEN);
