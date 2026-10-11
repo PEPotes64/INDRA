@@ -288,11 +288,19 @@ const verificarCooldown = (ultimaFecha) => {
 // --- MANEJADOR DE INTERACCIONES (COMANDOS SLASH) ---
 
 // --- RENDERIZADOR CANVAS (TARJETA CRÍTICA CORREGIDA) ---
-async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUrl, loBueno, loMalo, resumen, fondoUrl, positivoPct, stats, fuenteNombre }) {
-    const width = 1000;
-    const height = 600;
-    const canvas = createCanvas(width, height);
-    const ctx = canvas.getContext('2d');
+async function generarTarjetaCritica({ 
+    dibujoUrl, 
+    artistaNombre, 
+    artistaAvatarUrl, 
+    loBueno, 
+    loMalo, 
+    resumen, 
+    fondoUrl, 
+    tablaUrl, // 👈 ¡¡AGREGÁ ESTA VARIABLE AQUÍ PUES MAJE!!
+    positivoPct, 
+    stats, 
+    fuenteNombre 
+}) {
 
     // Nombre de fuente con fallback seguro
     const fontName = fuenteNombre ? fuenteNombre : 'sans-serif';
