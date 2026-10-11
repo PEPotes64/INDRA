@@ -1349,42 +1349,7 @@ client.on('interactionCreate', async interaction => {
             }
             if (xpTotalActual < tablaObj.precio) {
                 return await interaction.editReply(`❌ Necesitás **${tablaObj.precio} XP** para comprar esta tabla.`);
-// --- MANEJADOR PRINCIPAL DE INTERACCIONES Y MENÚS ---
-client.on('interactionCreate', async interaction => {
-    try {
-        // A. COMANDOS SLASH
-        if (interaction.isChatInputCommand()) {
-            const { commandName } = interaction;
-
-            if (commandName === 'settabla') {
-                if (interaction.user.id !== PEPO_ID) {
-                    return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
-                }
-
-                const nombreId = interaction.options.getString('nombre').toLowerCase().trim();
-                const imagenAdjunta = interaction.options.getAttachment('imagen');
-                const urlImagen = imagenAdjunta ? imagenAdjunta.url : null;
-                const precio = interaction.options.getInteger('precio') || null;
-                const nivelMinimo = interaction.options.getInteger('nivel') || null;
-
-                if (!urlImagen) {
-                    return await interaction.reply({ content: '❌ Tenés que subir una imagen válida.', ephemeral: true });
-                }
-
-                await Tabla.findOneAndUpdate(
-                    { guildId: interaction.guild.id, nombreId },
-                    { urlImagen, precio, nivelMinimo },
-                    { upsert: true, new: true }
-                );
-
-                return await interaction.reply({
-                    content: `✅ ¡Tabla **"${nombreId}"** guardada correctamente en MongoDB!`,
-                    ephemeral: true
-                });
-            }
-        }
-
-        // B. MENÚS DESPLEGABLES (StringSelectMenu)
+        // --- C. MENÚS DE EQUIPAMIENTO DEL PERFIL ---
         if (interaction.isStringSelectMenu()) {
             const { customId, values } = interaction;
 
@@ -1441,10 +1406,11 @@ client.on('interactionCreate', async interaction => {
                 return await interaction.editReply({ content: `📦 ¡Te equipaste el pack **"${packId}"** con éxito!` });
             }
         }
+
     } catch (err) {
-        console.error("Error general en interacciones/menús:", err);
+        console.error("Error general en interacciones:", err);
     }
 });
 
 client.login(process.env.DISCORD_TOKEN);
-                
+        
