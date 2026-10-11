@@ -354,30 +354,35 @@ async function generarTarjetaCritica({
         ctx.fill();
     }
 
-    // B. DIBUJO DEL ARTISTA (Cuadro seguro de 400x370)
-    if (dibujoUrl) {
-        try {
-            const resDibujo = await fetch(dibujoUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-            const arrayBuffer = await resDibujo.arrayBuffer();
-            const bufferDibujo = Buffer.from(arrayBuffer);
-            const dibujoImg = await loadImage(bufferDibujo);
+        // --- B. DIBUJAR TABLA / OVERLAY (LIQUID GLASS) ---
+    ctx.save();
+    
+    // Dibujamos el rectángulo base con efecto cristal/vidrio traslúcido
+    ctx.fillStyle = 'rgba(20, 20, 25, 0.65)'; // Color oscuro semitransparente estilo vidrio
+    ctx.beginPath();
+    ctx.roundRect(20, 20, width - 40, height - 40, 20);
+    ctx.fill();
 
-            ctx.save();
-            ctx.beginPath();
-            ctx.roundRect(40, 40, 400, 370, 15);
-            ctx.clip();
-            ctx.drawImage(dibujoImg, 40, 40, 400, 370);
-            ctx.restore();
-        } catch (err) {
-            console.error("Error al cargar dibujo en canvas:", err);
-            ctx.fillStyle = '#1A1D24';
-            ctx.roundRect(40, 40, 400, 370, 15);
-            ctx.fill();
-            ctx.fillStyle = '#FF5252';
-            ctx.font = `bold 16px ${fontMain}`;
-            ctx.fillText('❌ Error cargando imagen', 140, 220);
+    // Bordecito brillante para el efecto liquid glass
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Si viene la imagen de la tabla, la estiramos encima con opacidad suave
+    if (tablaUrl) {
+        try {
+            const resTabla = await fetch(tablaUrl);
+            const bufferTabla = Buffer.from(await resTabla.arrayBuffer());
+            const imgTabla = await loadImage(bufferTabla);
+            
+            ctx.globalAlpha = 0.85;
+            ctx.drawImage(imgTabla, 20, 20, width - 40, height - 40);
+        } catch (errTabla) {
+            console.error("Error al cargar la imagen de la tabla:", errTabla);
         }
     }
+    
+    ctx.restore(); // 👈 Reseteamos opacidad y efectos para el texto y las barras
 
     // C. BARRAS DE PORCENTAJE (POSITIVO / NEGATIVO CORREGIDAS)
     const barX = 40;
