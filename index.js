@@ -922,7 +922,7 @@ const todasMisTablas = [...new Set([...nombresTablasGratis, ...tablasCompradas])
         const fondosTienda = await Background.find({ guildId: interaction.guild.id, precio: { $ne: null } });
         const fuentesTienda = await Font.find({ guildId: interaction.guild.id, precio: { $ne: null } });
         const packsTienda = await Pack.find({ guildId: interaction.guild.id, precio: { $ne: null } });
-        const tablasTienda = await Tabla.find({ guildId, precio: { $ne: null } });
+        const tablasTienda = await Tabla.find({ guildId: interaction.guild.id, precio: { $ne: null } });
         
         const tiendaEmbed = new EmbedBuilder()
             .setColor('#00ffaa')
