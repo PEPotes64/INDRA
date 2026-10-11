@@ -1419,7 +1419,7 @@ client.on('interactionCreate', async interaction => {
     console.error("Clavo general en las interacciones/menús:", err);
 }
 
-});
+}
 
 client.login(process.env.DISCORD_TOKEN);
     
