@@ -354,51 +354,43 @@ async function generarTarjetaCritica({
         ctx.fill();
     }
 
-        // --- B. DIBUJAR TABLA / OVERLAY (LIQUID GLASS) ---
+    // --- B. TABLA / LIQUID GLASS ROTADA Y SCREEN ---
     ctx.save();
     
-    // Dibujamos el rectángulo base con efecto cristal/vidrio traslúcido
-    ctx.fillStyle = 'rgba(20, 20, 25, 0.65)'; // Color oscuro semitransparente estilo vidrio
+    // Fondo oscuro base de cristal por si la imagen tarda o falla
+    ctx.fillStyle = 'rgba(20, 20, 25, 0.65)';
     ctx.beginPath();
     ctx.roundRect(20, 20, width - 40, height - 40, 20);
     ctx.fill();
 
-    // Bordecito brillante para el efecto liquid glass
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Si viene la imagen de la tabla, la estiramos encima con opacidad suave
     if (tablaUrl) {
         try {
             const resTabla = await fetch(tablaUrl);
-            const bufferTabla = Buffer.from(await resTabla.arrayBuffer());
-            const imgTabla = await loadImage(bufferTabla);
+            const bufTabla = Buffer.from(await resTabla.arrayBuffer());
+            const imgTabla = await loadImage(bufTabla);
+
+            ctx.save();
+            // Movemos al centro y rotamos 90° para enderezar la imagen vertical en horizontal
+            ctx.translate(width / 2, height / 2);
+            ctx.rotate((90 * Math.PI) / 180);
             
-            ctx.globalAlpha = 0.85;
-            ctx.drawImage(imgTabla, 20, 20, width - 40, height - 40);
-        } catch (errTabla) {
-            console.error("Error al cargar la imagen de la tabla:", errTabla);
+            // 'screen' borra el fondo negro y funde los reflejos de vidrio con elegancia
+            ctx.globalCompositeOperation = 'screen';
+            ctx.globalAlpha = 0.95;
+
+            ctx.drawImage(imgTabla, -height / 2, -width / 2, height, width);
+            ctx.restore();
+        } catch (e) {
+            console.error("Error al rotar la tabla liquid glass:", e);
         }
     }
     
-    ctx.restore(); // 👈 Reseteamos opacidad y efectos para el texto y las barras
-
-        // --- B2. DIBUJO / OBRA DEL ARTISTA (A LA IZQUIERDA) ---
-    if (dibujoUrl) {
-        try {
-            const resDibujo = await fetch(dibujoUrl);
-            const bufDibujo = Buffer.from(await resDibujo.arrayBuffer());
-            const imgDibujo = await loadImage(bufDibujo);
-            
-            ctx.save();
-            // Dibujamos la foto ajustada en el lado izquierdo (x: 40, y: 40, ancho: 380, alto: 370)
-            ctx.drawImage(imgDibujo, 40, 40, 380, 370);
-            ctx.restore();
-        } catch (errDibujo) {
-            console.error("Error al cargar la imagen del dibujo:", errDibujo);
-        }
-    }
+    ctx.restore();
+    
 
     // C. BARRAS DE PORCENTAJE (POSITIVO / NEGATIVO CORREGIDAS)
     const barX = 40;
