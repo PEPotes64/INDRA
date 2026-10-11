@@ -320,33 +320,27 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
         ctx.fillRect(0, 0, width, height);
     }
 
-try {
-    let tablaUrl = null;
-    if (userXpData?.tablaEquipada) {
-        const tablaObj = await Tabla.findOne({ guildId: interaction.guild.id, nombreId: userXpData.tablaEquipada });
-        if (tablaObj) tablaUrl = tablaObj.urlImagen;
-    }
-
     if (tablaUrl) {
-        const imgTabla = await loadImage(tablaUrl);
-        ctx.save();
-        ctx.beginPath();
-        ctx.roundRect(20, 20, width - 40, height - 40, 20);
-        ctx.clip();
-        ctx.globalAlpha = 0.45; // 👈 Opacidad automática para cualquier imagen que subas
-        ctx.drawImage(imgTabla, 20, 20, width - 40, height - 40);
-        ctx.restore();
+        try {
+            const resTabla = await fetch(tablaUrl);
+            const bufferTabla = Buffer.from(await resTabla.arrayBuffer());
+            const imgTabla = await loadImage(bufferTabla);
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(20, 20, width - 40, height - 40, 20);
+            ctx.clip();
+            ctx.globalAlpha = 0.85; // Opacidad chiva para el liquid glass
+            ctx.drawImage(imgTabla, 20, 20, width - 40, height - 40);
+            ctx.restore();
+        } catch (errTabla) {
+            console.error("Error al cargar la imagen de la tabla:", errTabla);
+        }
     } else {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.60)';
         ctx.roundRect(20, 20, width - 40, height - 40, 20);
         ctx.fill();
     }
-} catch (e) {
-    console.error("Error al renderizar la tabla translúcida:", e);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.60)';
-    ctx.roundRect(20, 20, width - 40, height - 40, 20);
-    ctx.fill();
-}   
 
     // B. DIBUJO DEL ARTISTA (Cuadro seguro de 400x370)
     if (dibujoUrl) {
