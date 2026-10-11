@@ -243,7 +243,6 @@ client.once('ready', async () => {
     console.error('Error cargando comandos en el server:', error);
     }
     
-    }
 });
 
 // --- HELPER DE OBTENER XP TOTAL ---
