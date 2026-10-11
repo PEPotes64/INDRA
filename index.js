@@ -1404,9 +1404,10 @@ client.on('interactionCreate', async interaction => {
                 await userXpData.save();
 
                 return await interaction.editReply({ content: `📦 ¡Te equipaste el pack **${packId}**!` });
-            }
-        }
+                        }
+    } catch (err) {
         console.error("Error general en interacciones:", err);
     }
+});
 
 client.login(process.env.DISCORD_TOKEN);
