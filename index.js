@@ -903,9 +903,10 @@ const todasMisTablas = [...new Set([...nombresTablasGratis, ...tablasCompradas])
 
         let urlTablaUsar = null;
 if (nombreTabla && nombreTabla !== 'Predeterminada') {
+    const regexTabla = new RegExp(`^${nombreTabla.trim()}$`, 'i'); // 👈 Ignora mayúsculas/minúsculas
     const tablaObj = await Tabla.findOne({ 
         guildId: interaction.guild.id, 
-        $or: [{ nombreId: nombreTabla }, { nombre: nombreTabla }, { titulo: nombreTabla }] 
+        $or: [{ nombreId: regexTabla }, { nombre: regexTabla }, { titulo: regexTabla }] 
     });
     if (tablaObj) {
         urlTablaUsar = tablaObj.urlImagen || tablaObj.url || tablaObj.imageUrl;
@@ -1349,19 +1350,20 @@ client.on('interactionCreate', async interaction => {
             return await interaction.editReply(`🪞 ¡Compraste y equipaste la tabla **${tablaId}** con éxito!`);
         }
             
-            // --- DENTRO DEL MENÚ DE EQUIPAR TABLA ---
-if (customId === 'equipar_tabla_menu') {
-    await interaction.deferReply({ ephemeral: true }); // 👈 ¡¡ESTA LÍNEA ES LA QUE FALTA AQUÍ MERO, MAJE!!
+            if (customId === 'equipar_tabla_menu') {
+    await interaction.deferUpdate(); // 👈 Notifica a Discord inmediatamente
     
-    const tablaId = values[0].replace('equipar_tabla_', '');
+    const tablaId = values[0].replace('equipar_tabla_', '').trim();
     let userXpData = await UserXP.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
     if (!userXpData) userXpData = new UserXP({ userId: interaction.user.id, guildId: interaction.guild.id });
 
     userXpData.tablaEquipada = tablaId;
     await userXpData.save();
-    return await interaction.editReply({ content: `¡Te equipaste la tabla **${tablaId}** con éxito!`, ephemeral: true });
-}
 
+    return await interaction.followUp({ content: `¡Te equipaste la tabla **${tablaId}** con éxito!`, ephemeral: true });
+                
+            }
+            
         } catch (err) {
             console.error("Clavo en la tienda:", err);
             return await interaction.editReply('❌ Puchica, algo trono feo al intentar hacer la compra.');
