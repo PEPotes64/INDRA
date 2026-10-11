@@ -1055,6 +1055,30 @@ client.on('interactionCreate', async interaction => {
         }
         return;
     }
+
+        // --- COMANDO /settabla (SOLO PEPO) ---
+    if (commandName === 'settabla') {
+        if (interaction.user.id !== PEPO_ID) {
+            return await interaction.reply({ content: '❌ Solo el jefe Pepo puede usar este comando.', ephemeral: true });
+        }
+
+        const nombreId = interaction.options.getString('nombre');
+        const urlImagen = interaction.options.getString('url');
+        const precio = interaction.options.getInteger('precio') || null;
+        const nivelMinimo = interaction.options.getInteger('nivel') || null;
+
+        await Tabla.findOneAndUpdate(
+            { guildId: interaction.guild.id, nombreId },
+            { urlImagen, precio, nivelMinimo },
+            { upsert: true, new: true }
+        );
+
+        return await interaction.reply({ 
+            content: `✅ ¡Tabla/Panel **${nombreId}** guardada correctamente en la base de datos y agregada a la tienda/armario!`,
+            ephemeral: true 
+        });
+    }
+    
 });
 
 // --- MANEJADOR DE SELECCIONES EN LA TIENDA ---
