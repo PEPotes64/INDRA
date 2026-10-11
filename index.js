@@ -302,10 +302,24 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
         ctx.fillRect(0, 0, width, height);
     }
 
-    // Capa translúcida general (Negro suave al 65% para resaltar el fondo)
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.50)';
+    // --- AHORA (Textura Liquid Glass / Marco personalizado) ---
+try {
+    // Pegás aquí el URL de tu textura PNG (el vidrio líquido)
+    const urlTexturaMarco = 'https://tu-link-de-imagen.com/liquid_glass.png'; 
+    const imgMarco = await loadImage(urlTexturaMarco);
+    
+    // Dibujamos el marco con opacidad suave para que no tape todo
+    ctx.globalAlpha = 0.85; // Ajustás qué tan transparente querés el vidrio
+    ctx.drawImage(imgMarco, 20, 20, width - 40, height - 40);
+    ctx.globalAlpha = 1.0;  // Restauramos la opacidad normal para los textos y gráficos
+} catch (e) {
+    console.error("Error cargando textura del marco, usando fallback:", e);
+    // Fallback por si falla el link: dibuja el rectángulo oscuro de siempre
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
     ctx.roundRect(20, 20, width - 40, height - 40, 20);
     ctx.fill();
+}
+    
 
     // B. DIBUJO DEL ARTISTA (Cuadro seguro de 400x370)
     if (dibujoUrl) {
