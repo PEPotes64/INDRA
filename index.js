@@ -727,18 +727,17 @@ const tablasPredeterminadas = await Tabla.find({ guildId, precio: null, nivelMin
 const nombresTablasGratis = [...tablasGratisLvl, ...tablasPredeterminadas].map(t => t.nombreId);
 const todasMisTablas = [...new Set([...nombresTablasGratis, ...tablasCompradas])];
 
-            const perfilEmbed = new EmbedBuilder()
-                .setColor('#0b50b6')
-                .setTitle(`🎨 Armario Cosmético de ${interaction.user.username}`)
-                .setDescription('Elegí y equipá tus cosméticos desbloqueados o comprados.')
-                .addFields(
-        { name: '🌅 Fondo Equipado:', value: `\`${userXpData?.cartelEquipado || 'Ninguno'}\``, inline: true },
-        { name: '🪞 Fuente Equipada:', value: `\`${userXpData?.fuenteEquipada || 'Predeterminada'}\``, inline: true },
-        { name: '🪞 Tabla Equipada:', value: `\`${userXpData?.tablaEquipada || 'Predeterminada'}\``, inline: true }
-    )
+                const perfilEmbed = new EmbedBuilder()
+        .setColor('#0b50b6')
+        .setTitle(`🎨 Armario Cosmético de ${interaction.user.username}`)
+        .setDescription('Elegí y equipá tus cosméticos desbloqueados o comprados.')
+        .addFields(
+            { name: '🌅 Fondo Equipado:', value: `\`${userXpData?.cartelEquipado || 'Ninguno'}\``, inline: true },
+            { name: '🪞 Fuente Equipada:', value: `\`${userXpData?.fuenteEquipada || 'Predeterminada'}\``, inline: true },
+            { name: '🪞 Tabla Equipada:', value: `\`${userXpData?.tablaEquipada || 'Predeterminada'}\``, inline: true }
+        )
             
-                )
-                .setFooter({ text: 'Zeus Armario', iconURL: client.user.displayAvatarURL() });
+             .setFooter({ text: 'Zeus Armario', iconURL: client.user.displayAvatarURL() });
 
             const componentes = [];
 
