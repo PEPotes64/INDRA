@@ -887,21 +887,24 @@ const todasMisTablas = [...new Set([...nombresTablasGratis, ...tablasCompradas])
                 { nombre: 'Pinceles', val: interaction.options.getInteger('pinceles') ?? 70 }
             ];
 
-                    let datosArtista = await UserXP.findOne({ userId: artista.id, guildId: interaction.guild.id });
-        const nombreCartel = datosArtista?.cartelEquipada;
+                            // Buscamos los datos del usuario que tira la crítica (o del artista)
+        let datosArtista = await UserXP.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
+        
+        const nombreCartel = datosArtista?.cartelEquipada || datosArtista?.cartelEquipado;
         const fuenteNombre = datosArtista?.fuenteEquipada;
-        const nombreTabla = datosArtista?.tablaEquipada; // 👈 1. OBTENÉ EL NOMBRE DE LA TABLA EQUIPADA
+        const nombreTabla = datosArtista?.tablaEquipada;
 
         let urlFondoUsar = null;
-        if (nombreCartel) {
+        if (nombreCartel && nombreCartel !== 'Ninguno') {
             const bgObj = await Background.findOne({ guildId: interaction.guild.id, nombreId: nombreCartel });
-            if (bgObj) urlFondoUsar = bgObj.imageUrl;
+            // Probamos si la URL se llama fondoUrl, urlImagen o imageUrl
+            if (bgObj) urlFondoUsar = bgObj.fondoUrl || bgObj.urlImagen || bgObj.imageUrl || bgObj.url;
         }
 
-        let urlTablaUsar = null; // 👈 2. BUSCÁ LA URL DE LA TABLA EN MONGODB
-        if (nombreTabla) {
+        let urlTablaUsar = null;
+        if (nombreTabla && nombreTabla !== 'Predeterminada') {
             const tablaObj = await Tabla.findOne({ guildId: interaction.guild.id, nombreId: nombreTabla });
-            if (tablaObj) urlTablaUsar = tablaObj.urlImagen;
+            if (tablaObj) urlTablaUsar = tablaObj.urlImagen || tablaObj.url;
         }
 
         const bufferFicha = await generarTarjetaCritica({
