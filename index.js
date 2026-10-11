@@ -307,11 +307,17 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
     ctx.roundRect(20, 20, width - 40, height - 40, 20);
     ctx.fill();
 
-    // B. DIBUJO DEL ARTISTA (Procesamiento seguro)
+    // B. DIBUJO DEL ARTISTA (Procesamiento directo de buffer)
     if (dibujoUrl) {
         try {
-            const resDibujo = await fetch(dibujoUrl);
-            const bufferDibujo = Buffer.from(await resDibujo.arrayBuffer());
+            const resDibujo = await fetch(dibujoUrl, {
+                headers: { 'User-Agent': 'Mozilla/5.0' }
+            });
+            
+            if (!resDibujo.ok) throw new Error(`HTTP error! status: ${resDibujo.status}`);
+            
+            const arrayBuffer = await resDibujo.arrayBuffer();
+            const bufferDibujo = Buffer.from(arrayBuffer);
             const dibujoImg = await loadImage(bufferDibujo);
 
             ctx.save();
@@ -321,10 +327,14 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
             ctx.drawImage(dibujoImg, 40, 40, 400, 370);
             ctx.restore();
         } catch (err) {
-            console.error("Error al cargar dibujo en canvas:", err);
-            ctx.fillStyle = '#222';
+            console.error("Error feo al cargar dibujo en canvas:", err);
+            // Dibujar marco gris oscuro elegante con texto si de verdad falla la imagen
+            ctx.fillStyle = '#1A1D24';
             ctx.roundRect(40, 40, 400, 370, 15);
             ctx.fill();
+            ctx.fillStyle = '#FF5252';
+            ctx.font = `bold 16px ${fontMain}`;
+            ctx.fillText('❌ Error cargando imagen', 140, 220);
         }
     }
 
