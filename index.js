@@ -1406,7 +1406,7 @@ client.on('interactionCreate', async interaction => {
                 return await interaction.editReply({ content: `📦 ¡Te equipaste el pack **${packId}**!` });
             }
         }
-    } catch (err) {
+    } catch (err) 
         console.error("Error general en interacciones:", err);
     }
 });
