@@ -332,28 +332,6 @@ async function generarTarjetaCritica({
         ctx.fillRect(0, 0, width, height);
     }
 
-    if (tablaUrl) {
-        try {
-            const resTabla = await fetch(tablaUrl);
-            const bufferTabla = Buffer.from(await resTabla.arrayBuffer());
-            const imgTabla = await loadImage(bufferTabla);
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.roundRect(20, 20, width - 40, height - 40, 20);
-            ctx.clip();
-            ctx.globalAlpha = 0.85; // Opacidad chiva para el liquid glass
-            ctx.drawImage(imgTabla, 20, 20, width - 40, height - 40);
-            ctx.restore();
-        } catch (errTabla) {
-            console.error("Error al cargar la imagen de la tabla:", errTabla);
-        }
-    } else {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.60)';
-        ctx.roundRect(20, 20, width - 40, height - 40, 20);
-        ctx.fill();
-    }
-
     // --- B. TABLA / LIQUID GLASS ROTADA Y SCREEN ---
     ctx.save();
     
@@ -390,7 +368,21 @@ async function generarTarjetaCritica({
     }
     
     ctx.restore();
-    
+
+        // --- B2. DIBUJO / OBRA DEL ARTISTA (A LA IZQUIERDA) ---
+    if (dibujoUrl) {
+        try {
+            const resDibujo = await fetch(dibujoUrl);
+            const bufDibujo = Buffer.from(await resDibujo.arrayBuffer());
+            const imgDibujo = await loadImage(bufDibujo);
+            
+            ctx.save();
+            ctx.drawImage(imgDibujo, 40, 40, 380, 370);
+            ctx.restore();
+        } catch (errDibujo) {
+            console.error("Error al cargar la imagen del dibujo:", errDibujo);
+        }
+    }
 
     // C. BARRAS DE PORCENTAJE (POSITIVO / NEGATIVO CORREGIDAS)
     const barX = 40;
