@@ -307,15 +307,10 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
     ctx.roundRect(20, 20, width - 40, height - 40, 20);
     ctx.fill();
 
-    // B. DIBUJO DEL ARTISTA (Procesamiento directo de buffer)
+    // B. DIBUJO DEL ARTISTA (Cuadro seguro de 400x370)
     if (dibujoUrl) {
         try {
-            const resDibujo = await fetch(dibujoUrl, {
-                headers: { 'User-Agent': 'Mozilla/5.0' }
-            });
-            
-            if (!resDibujo.ok) throw new Error(`HTTP error! status: ${resDibujo.status}`);
-            
+            const resDibujo = await fetch(dibujoUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
             const arrayBuffer = await resDibujo.arrayBuffer();
             const bufferDibujo = Buffer.from(arrayBuffer);
             const dibujoImg = await loadImage(bufferDibujo);
@@ -327,8 +322,7 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
             ctx.drawImage(dibujoImg, 40, 40, 400, 370);
             ctx.restore();
         } catch (err) {
-            console.error("Error feo al cargar dibujo en canvas:", err);
-            // Dibujar marco gris oscuro elegante con texto si de verdad falla la imagen
+            console.error("Error al cargar dibujo en canvas:", err);
             ctx.fillStyle = '#1A1D24';
             ctx.roundRect(40, 40, 400, 370, 15);
             ctx.fill();
@@ -338,35 +332,45 @@ async function generarTarjetaCritica({ dibujoUrl, artistaNombre, artistaAvatarUr
         }
     }
 
-    // C. BARRAS DE PORCENTAJE (POSITIVO / NEGATIVO)
-    const barX = 40, barY = 430, barWidth = 400, barHeight = 20;
+    // C. BARRAS DE PORCENTAJE (POSITIVO / NEGATIVO CORREGIDAS)
+    const barX = 40;
+    const barWidth = 400;
+    const barHeight = 16;
 
-    ctx.font = `bold 15px ${fontMain}`;
+    // 1. Barra Positiva
+    const barYPos = 430;
+    ctx.font = `bold 14px ${fontMain}`;
     ctx.fillStyle = '#4CAF50';
-    ctx.fillText(`🟢 Positivo: ${posFinal}%`, barX, barY);
+    ctx.fillText(`🟢 Positivo: ${posFinal}%`, barX, barYPos);
 
     ctx.fillStyle = '#1E232A';
-    ctx.roundRect(barX, barY + 6, barWidth, barHeight, 8);
+    ctx.beginPath();
+    ctx.roundRect(barX, barYPos + 6, barWidth, barHeight, 6);
     ctx.fill();
 
     if (posFinal > 0) {
         const wVerde = (barWidth * posFinal) / 100;
         ctx.fillStyle = '#4CAF50';
-        ctx.roundRect(barX, barY + 6, wVerde, barHeight, 8);
+        ctx.beginPath();
+        ctx.roundRect(barX, barYPos + 6, wVerde, barHeight, 6);
         ctx.fill();
     }
 
+    // 2. Barra Negativa
+    const barYNeg = 480;
     ctx.fillStyle = '#FF5252';
-    ctx.fillText(`🔴 Negativo: ${negativoPct}%`, barX, barY + 54);
+    ctx.fillText(`🔴 Negativo: ${negativoPct}%`, barX, barYNeg);
 
     ctx.fillStyle = '#1E232A';
-    ctx.roundRect(barX, barY + 60, barWidth, barHeight, 8);
+    ctx.beginPath();
+    ctx.roundRect(barX, barYNeg + 6, barWidth, barHeight, 6);
     ctx.fill();
 
     if (negativoPct > 0) {
         const wRojo = (barWidth * negativoPct) / 100;
         ctx.fillStyle = '#FF5252';
-        ctx.roundRect(barX, barY + 60, wRojo, barHeight, 8);
+        ctx.beginPath();
+        ctx.roundRect(barX, barYNeg + 6, wRojo, barHeight, 6);
         ctx.fill();
     }
 
