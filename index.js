@@ -384,6 +384,22 @@ async function generarTarjetaCritica({
     
     ctx.restore(); // 👈 Reseteamos opacidad y efectos para el texto y las barras
 
+        // --- B2. DIBUJO / OBRA DEL ARTISTA (A LA IZQUIERDA) ---
+    if (dibujoUrl) {
+        try {
+            const resDibujo = await fetch(dibujoUrl);
+            const bufDibujo = Buffer.from(await resDibujo.arrayBuffer());
+            const imgDibujo = await loadImage(bufDibujo);
+            
+            ctx.save();
+            // Dibujamos la foto ajustada en el lado izquierdo (x: 40, y: 40, ancho: 380, alto: 370)
+            ctx.drawImage(imgDibujo, 40, 40, 380, 370);
+            ctx.restore();
+        } catch (errDibujo) {
+            console.error("Error al cargar la imagen del dibujo:", errDibujo);
+        }
+    }
+
     // C. BARRAS DE PORCENTAJE (POSITIVO / NEGATIVO CORREGIDAS)
     const barX = 40;
     const barWidth = 400;
