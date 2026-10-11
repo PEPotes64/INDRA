@@ -902,10 +902,15 @@ const todasMisTablas = [...new Set([...nombresTablasGratis, ...tablasCompradas])
         }
 
         let urlTablaUsar = null;
-        if (nombreTabla && nombreTabla !== 'Predeterminada') {
-            const tablaObj = await Tabla.findOne({ guildId: interaction.guild.id, nombreId: nombreTabla });
-            if (tablaObj) urlTablaUsar = tablaObj.urlImagen || tablaObj.url;
-        }
+if (nombreTabla && nombreTabla !== 'Predeterminada') {
+    const tablaObj = await Tabla.findOne({ 
+        guildId: interaction.guild.id, 
+        $or: [{ nombreId: nombreTabla }, { nombre: nombreTabla }, { titulo: nombreTabla }] 
+    });
+    if (tablaObj) {
+        urlTablaUsar = tablaObj.urlImagen || tablaObj.url || tablaObj.imageUrl;
+    }
+}
 
         const bufferFicha = await generarTarjetaCritica({
             dibujoUrl: foto.url,
@@ -1344,18 +1349,18 @@ client.on('interactionCreate', async interaction => {
             return await interaction.editReply(`🪞 ¡Compraste y equipaste la tabla **${tablaId}** con éxito!`);
         }
             
-
-            if (customId === 'equipar_tabla_menu') {
-    await interaction.deferReply({ ephemeral: true });
+            // --- DENTRO DEL MENÚ DE EQUIPAR TABLA ---
+if (customId === 'equipar_tabla_menu') {
+    await interaction.deferReply({ ephemeral: true }); // 👈 ¡¡ESTA LÍNEA ES LA QUE FALTA AQUÍ MERO, MAJE!!
+    
     const tablaId = values[0].replace('equipar_tabla_', '');
     let userXpData = await UserXP.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
     if (!userXpData) userXpData = new UserXP({ userId: interaction.user.id, guildId: interaction.guild.id });
 
     userXpData.tablaEquipada = tablaId;
     await userXpData.save();
-    return await interaction.editReply(`🪞 ¡Te equipaste la tabla **${tablaId}** con éxito!`);
-                
-            }   
+    return await interaction.editReply({ content: `¡Te equipaste la tabla **${tablaId}** con éxito!`, ephemeral: true });
+}
 
         } catch (err) {
             console.error("Clavo en la tienda:", err);
