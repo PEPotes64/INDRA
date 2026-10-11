@@ -1413,6 +1413,11 @@ client.on('interactionCreate', async interaction => {
         await userXpData.save();
         return await interaction.editReply(`📦 ¡Te equipaste el pack **${packId}** (Fondo: \`${packObj.fondoNombreId}\` + Fuente: \`${packObj.fuenteNombreId}\`)!`);
     }
+
+    } catch (err) {
+    console.error("Clavo general en las interacciones/menús:", err);
+            
+        }
     
 });
 
