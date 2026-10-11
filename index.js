@@ -732,9 +732,10 @@ const todasMisTablas = [...new Set([...nombresTablasGratis, ...tablasCompradas])
                 .setTitle(`🎨 Armario Cosmético de ${interaction.user.username}`)
                 .setDescription('Elegí y equipá tus cosméticos desbloqueados o comprados.')
                 .addFields(
-                    { name: '🖼️ Fondo Equipado:', value: `\`${userXpData?.cartelEquipado || 'Ninguno'}\``, inline: true },
-                    { name: '🔤 Fuente Equipada:', value: `\`${userXpData?.fuenteEquipada || 'Predeterminada'}\``, inline: true }
-                    { name: '🪞 Tabla Equipada:', value: `\`${userXpData?.tablaEquipada || 'Predeterminada'}\``, inline: true }
+        { name: '🌅 Fondo Equipado:', value: `\`${userXpData?.cartelEquipado || 'Ninguno'}\``, inline: true },
+        { name: '🪞 Fuente Equipada:', value: `\`${userXpData?.fuenteEquipada || 'Predeterminada'}\``, inline: true },
+        { name: '🪞 Tabla Equipada:', value: `\`${userXpData?.tablaEquipada || 'Predeterminada'}\``, inline: true }
+    )
             
                 )
                 .setFooter({ text: 'Zeus Armario', iconURL: client.user.displayAvatarURL() });
