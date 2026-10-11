@@ -203,7 +203,7 @@ const dataTabla = {
     description: 'Sube/asigna una tabla o marco translúcido a MongoDB (Exclusivo Pepo)',
     options: [
         { name: 'nombre', type: ApplicationCommandOptionType.String, description: 'Nombre ID de la tabla', required: true },
-        { name: 'imagen', type: ApplicationCommandOptionType.Attachment, description: 'Subir imagen desde galería', required: true }, // 👈 AHORA ES ATTACHMENT
+        { name: 'imagen', type: ApplicationCommandOptionType.Attachment, description: 'Subir imagen desde galería', required: true },
         { name: 'precio', type: ApplicationCommandOptionType.Integer, description: 'Precio en XP', required: false },
         { name: 'nivel', type: ApplicationCommandOptionType.Integer, description: 'Nivel mínimo', required: false }
     ]
@@ -212,7 +212,6 @@ const dataTabla = {
 client.once('ready', async () => {
     console.log(`Bot prendido como ${client.user.tag}! Zeus ya anda zumbando > :v`);
 
-    // Sincronizar fuentes guardadas en Mongo con el Canvas de Render al arrancar
     try {
         const fuentesGuardadas = await Font.find({});
         for (const f of fuentesGuardadas) {
@@ -230,22 +229,21 @@ client.once('ready', async () => {
     }
 
     try {
-    const guildTarget = client.guilds.cache.get('1336314516333658164');
-    if (guildTarget) {
-        await guildTarget.commands.set([
-            dataAddXp, dataQuitarXp, dataVerXp, dataTop, dataComprar, 
-            dataPerfil, dataCritica, dataSetBg, dataDelBg, dataSetFont, 
-            dataSetPack, dataTabla
-        ]);
-        console.log('¡Comandos instantáneos listos en el server compa > :v!');
+        const guildTarget = client.guilds.cache.get('1336314516333658164');
+        if (guildTarget) {
+            await guildTarget.commands.set([
+                dataAddXp, dataQuitarXp, dataVerXp, dataTop, dataComprar, 
+                dataPerfil, dataCritica, dataSetBg, dataDelBg, dataSetFont, 
+                dataSetPack, dataTabla
+            ]);
+            console.log('¡Comandos instantáneos listos en el server compa > :v!');
+        }
+    } catch (error) {
+        console.error('Error cargando comandos en el server:', error);
     }
-} catch (error) {
-    console.error('Error cargando comandos en el server:', error);
-    }
-    
 });
 
-// --- HELPER DE OBTENER XP TOTAL ---
+// --- HELPERS ---
 const obtenerXpTotal = (data) => {
     let total = data.xp;
     for (let i = 1; i < data.level; i++) {
@@ -254,7 +252,6 @@ const obtenerXpTotal = (data) => {
     return total;
 };
 
-// --- HELPER DE RECALCULAR PROGRESO ---
 const recalcularProgreso = (data, nuevoXpTotal) => {
     let lvl = 1;
     let xpRestante = nuevoXpTotal;
@@ -270,7 +267,6 @@ const recalcularProgreso = (data, nuevoXpTotal) => {
     data.xp = xpRestante;
 };
 
-// --- HELPER DE COOLDOWNS ---
 const DOS_DIAS_MS = 2 * 24 * 60 * 60 * 1000;
 const verificarCooldown = (ultimaFecha) => {
     if (!ultimaFecha) return null;
@@ -285,9 +281,7 @@ const verificarCooldown = (ultimaFecha) => {
     return null;
 };
 
-// --- MANEJADOR DE INTERACCIONES (COMANDOS SLASH) ---
-
-// --- RENDERIZADOR CANVAS (TARJETA CRÍTICA CORREGIDA) ---
+// --- RENDERIZADOR CANVAS ---
 async function generarTarjetaCritica({ 
     dibujoUrl, 
     artistaNombre, 
@@ -296,17 +290,15 @@ async function generarTarjetaCritica({
     loMalo, 
     resumen, 
     fondoUrl, 
-    tablaUrl, // 👈 ¡¡AGREGÁ ESTA VARIABLE AQUÍ PUES MAJE!!
+    tablaUrl, 
     positivoPct, 
     stats, 
     fuenteNombre 
 }) {
-    
     const width = 1000;
     const height = 600;
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
-    // Nombre de fuente con fallback seguro
     const fontName = fuenteNombre ? fuenteNombre : 'sans-serif';
     const fontMain = `"${fontName}", sans-serif`;
 
@@ -316,7 +308,6 @@ async function generarTarjetaCritica({
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
 
-    // A. Fondo de pantalla
     if (fondoUrl) {
         try {
             const resBg = await fetch(fondoUrl);
@@ -332,10 +323,7 @@ async function generarTarjetaCritica({
         ctx.fillRect(0, 0, width, height);
     }
 
-    // --- B. TABLA / LIQUID GLASS ROTADA Y SCREEN ---
     ctx.save();
-    
-    // Fondo oscuro base de cristal por si la imagen tarda o falla
     ctx.fillStyle = 'rgba(20, 20, 25, 0.65)';
     ctx.beginPath();
     ctx.roundRect(20, 20, width - 40, height - 40, 20);
@@ -352,30 +340,23 @@ async function generarTarjetaCritica({
             const imgTabla = await loadImage(bufTabla);
 
             ctx.save();
-            // Movemos al centro y rotamos 90° para enderezar la imagen vertical en horizontal
             ctx.translate(width / 2, height / 2);
             ctx.rotate((90 * Math.PI) / 180);
-            
-            // 'screen' borra el fondo negro y funde los reflejos de vidrio con elegancia
             ctx.globalCompositeOperation = 'screen';
             ctx.globalAlpha = 0.95;
-
             ctx.drawImage(imgTabla, -height / 2, -width / 2, height, width);
             ctx.restore();
         } catch (e) {
             console.error("Error al rotar la tabla liquid glass:", e);
         }
     }
-    
     ctx.restore();
 
-        // --- B2. DIBUJO / OBRA DEL ARTISTA (A LA IZQUIERDA) ---
     if (dibujoUrl) {
         try {
             const resDibujo = await fetch(dibujoUrl);
             const bufDibujo = Buffer.from(await resDibujo.arrayBuffer());
             const imgDibujo = await loadImage(bufDibujo);
-            
             ctx.save();
             ctx.drawImage(imgDibujo, 40, 40, 380, 370);
             ctx.restore();
@@ -384,17 +365,14 @@ async function generarTarjetaCritica({
         }
     }
 
-    // C. BARRAS DE PORCENTAJE (POSITIVO / NEGATIVO CORREGIDAS)
     const barX = 40;
     const barWidth = 400;
     const barHeight = 16;
 
-    // 1. Barra Positiva
     const barYPos = 430;
     ctx.font = `bold 14px ${fontMain}`;
     ctx.fillStyle = '#4CAF50';
     ctx.fillText(`🟢 Positivo: ${posFinal}%`, barX, barYPos);
-
     ctx.fillStyle = '#1E232A';
     ctx.beginPath();
     ctx.roundRect(barX, barYPos + 6, barWidth, barHeight, 6);
@@ -408,11 +386,9 @@ async function generarTarjetaCritica({
         ctx.fill();
     }
 
-    // 2. Barra Negativa
     const barYNeg = 480;
     ctx.fillStyle = '#FF5252';
     ctx.fillText(`🔴 Negativo: ${negativoPct}%`, barX, barYNeg);
-
     ctx.fillStyle = '#1E232A';
     ctx.beginPath();
     ctx.roundRect(barX, barYNeg + 6, barWidth, barHeight, 6);
@@ -426,7 +402,6 @@ async function generarTarjetaCritica({
         ctx.fill();
     }
 
-    // D. AVATAR + NOMBRE DEL ARTISTA
     ctx.fillStyle = '#FFD700';
     ctx.font = `bold 22px ${fontMain}`;
     ctx.fillText(`🎨 @${artistaNombre}`, 470, 75);
@@ -436,7 +411,6 @@ async function generarTarjetaCritica({
             const resAvatar = await fetch(artistaAvatarUrl);
             const bufAvatar = Buffer.from(await resAvatar.arrayBuffer());
             const avatarImg = await loadImage(bufAvatar);
-
             ctx.save();
             ctx.beginPath();
             ctx.arc(920, 70, 35, 0, Math.PI * 2);
@@ -455,7 +429,6 @@ async function generarTarjetaCritica({
     ctx.lineTo(950, 115);
     ctx.stroke();
 
-    // E. TEXTOS DE LA CRÍTICA
     const wrapText = (context, label, text, colorLabel, x, startY, maxWidth, lineHeight) => {
         context.font = `bold 16px ${fontMain}`;
         context.fillStyle = colorLabel;
@@ -487,7 +460,6 @@ async function generarTarjetaCritica({
     nextY = wrapText(ctx, '🔴 EL FRENO:', loMalo, '#FF5252', 470, nextY, 480, 20);
     nextY = wrapText(ctx, '📜 VEREDICTO:', resumen, '#FFB700', 470, nextY, 480, 20);
 
-    // F. BARRAS MULTICOLOR DE HABILIDADES (Lineart, Creatividad, etc.)
     const graphYBase = 530;
     const graphMaxHeight = 100;
     const startX = 480;
@@ -498,13 +470,12 @@ async function generarTarjetaCritica({
     ctx.font = `bold 16px ${fontMain}`;
     ctx.fillText('📊 ANÁLISIS DE HABILIDADES:', 470, Math.max(nextY + 10, 330));
 
-    // Colores vivos por nivel de porcentaje
     const obtenerColorRango = (porcentaje) => {
-        if (porcentaje < 30) return '#FF5252'; // Rojo
-        if (porcentaje < 50) return '#FFB700'; // Naranja / Amarillo
-        if (porcentaje < 75) return '#00E676'; // Verde brillante
-        if (porcentaje < 90) return '#00E5FF'; // Cian
-        return '#D500F9';                     // Morado / Rosa
+        if (porcentaje < 30) return '#FF5252';
+        if (porcentaje < 50) return '#FFB700';
+        if (porcentaje < 75) return '#00E676';
+        if (porcentaje < 90) return '#00E5FF';
+        return '#D500F9';
     };
 
     stats.forEach((item, index) => {
@@ -513,13 +484,11 @@ async function generarTarjetaCritica({
         const currentBarHeight = (graphMaxHeight * val) / 100;
         const colorBarra = obtenerColorRango(val);
 
-        // Fondo oscuro de la barra
         ctx.fillStyle = '#1E232A';
         ctx.beginPath();
         ctx.roundRect(x, graphYBase - graphMaxHeight, colWidth, graphMaxHeight, 8);
         ctx.fill();
 
-        // Relleno coloreado
         if (val > 0) {
             ctx.fillStyle = colorBarra;
             ctx.beginPath();
@@ -527,12 +496,10 @@ async function generarTarjetaCritica({
             ctx.fill();
         }
 
-        // Porcentaje arriba de la barra
         ctx.fillStyle = '#FFFFFF';
         ctx.font = `bold 12px ${fontMain}`;
         ctx.fillText(`${val}%`, x - 2, graphYBase - (val > 0 ? currentBarHeight : 0) - 8);
 
-        // Nombre de la estadística abajo
         ctx.fillStyle = '#AAAAAA';
         ctx.font = `bold 11px ${fontMain}`;
         ctx.fillText(item.nombre, x - 10, graphYBase + 20);
@@ -540,8 +507,8 @@ async function generarTarjetaCritica({
 
     return canvas.toBuffer('image/png');
 }
-                 
-// --- CHEQUEO AUTOMÁTICO DE ROLES POR NIVEL ---
+
+// --- CHEQUEO DE ROLES ---
 async function checkearRoles(member, nivelActual, guild) {
     try {
         const rangoEncontrado = nivelesRoles.find(r => nivelActual >= r.min && nivelActual <= r.max);
@@ -554,7 +521,7 @@ async function checkearRoles(member, nivelActual, guild) {
             await member.roles.remove(rolesAQuitar);
         }
 
-        const rolNuevoObj = guild.roles.cache.get(rangoEncontrado.id);
+                const rolNuevoObj = guild.roles.cache.get(rangoEncontrado.id);
         if (rolNuevoObj && !member.roles.cache.has(rolNuevoObj.id)) {
             await member.roles.add(rolNuevoObj);
         }
@@ -563,7 +530,7 @@ async function checkearRoles(member, nivelActual, guild) {
     }
 }
 
-// --- SISTEMA DE GANAR XP POR MENSAJES DE TEXTO, IMÁGENES Y MULTIPLICADORES ---
+// --- SISTEMA DE XP POR MENSAJES ---
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
 
@@ -633,13 +600,13 @@ client.on('messageCreate', async message => {
         console.error("Clavo con la XP:", error);
     }
 });
-                
+
+// --- MANEJADOR DE COMANDOS SLASH ---
 client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
     const { commandName } = interaction;
 
-    // /xp
     if (commandName === 'xp') {
         try {
             await interaction.deferReply();
@@ -668,7 +635,6 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // /top
     if (commandName === 'top') {
         try {
             await interaction.deferReply();
@@ -696,9 +662,7 @@ client.on('interactionCreate', async interaction => {
             if (interaction.deferred) return await interaction.editReply(`❌ Error al cargar el top: \`${err.message}\``);
         }
     }
-
-        // /perfil (Armario completo: Fondos, Fuentes y Packs)
-    if (commandName === 'perfil') {
+        if (commandName === 'perfil') {
         try {
             await interaction.deferReply({ ephemeral: true });
             const userId = interaction.user.id;
@@ -707,49 +671,43 @@ client.on('interactionCreate', async interaction => {
             let userXpData = await UserXP.findOne({ userId, guildId });
             const nivelUsuario = userXpData ? userXpData.level : 1;
 
-            // --- A. FONDOS ---
             const bgsComprados = userXpData?.cartelesComprados || [];
-            const bgsGratisLvl = await Background.find({ guildId, precio: null, nivelMinimo: { $ne: null, $lte: nivelUsuario } });
+            const bgsGratisLvl = await Background.find({ guildId, precio: null, nivelMinimo: { $ne: null,$lte: nivelUsuario } });
             const bgsPredeterminados = await Background.find({ guildId, precio: null, nivelMinimo: null });
             const nombresBgsGratis = [...bgsGratisLvl, ...bgsPredeterminados].map(b => b.nombreId);
             const todosMisFondos = [...new Set([...nombresBgsGratis, ...bgsComprados])];
 
-            // --- B. FUENTES ---
             const fuentesCompradas = userXpData?.fuentesCompradas || [];
-            const fuentesGratisLvl = await Font.find({ guildId, precio: null, nivelMinimo: { $ne: null, $lte: nivelUsuario } });
+            const fuentesGratisLvl = await Font.find({ guildId, precio: null, nivelMinimo: { $ne: null,$lte: nivelUsuario } });
             const fuentesPredeterminadas = await Font.find({ guildId, precio: null, nivelMinimo: null });
             const nombresFuentesGratis = [...fuentesGratisLvl, ...fuentesPredeterminadas].map(f => f.nombreId);
             const todasMisFuentes = [...new Set([...nombresFuentesGratis, ...fuentesCompradas])];
 
-            // --- C. PACKS ---
             const packsComprados = userXpData?.packsComprados || [];
-            const packsGratisLvl = await Pack.find({ guildId, precio: null, nivelMinimo: { $ne: null, $lte: nivelUsuario } });
+            const packsGratisLvl = await Pack.find({ guildId, precio: null, nivelMinimo: { $ne: null,$lte: nivelUsuario } });
             const packsPredeterminados = await Pack.find({ guildId, precio: null, nivelMinimo: null });
             const nombresPacksGratis = [...packsGratisLvl, ...packsPredeterminados].map(p => p.nombreId);
             const todosMisPacks = [...new Set([...nombresPacksGratis, ...packsComprados])];
 
-            // --- D. TABLAS ---
-const tablasCompradas = userXpData?.tablasCompradas || [];
-const tablasGratisLvl = await Tabla.find({ guildId, precio: null, nivelMinimo: { $ne: null,$lte: nivelUsuario } });
-const tablasPredeterminadas = await Tabla.find({ guildId, precio: null, nivelMinimo: null });
-const nombresTablasGratis = [...tablasGratisLvl, ...tablasPredeterminadas].map(t => t.nombreId);
-const todasMisTablas = [...new Set([...nombresTablasGratis, ...tablasCompradas])];
+            const tablasCompradas = userXpData?.tablasCompradas || [];
+            const tablasGratisLvl = await Tabla.find({ guildId, precio: null, nivelMinimo: { $ne: null,$lte: nivelUsuario } });
+            const tablasPredeterminadas = await Tabla.find({ guildId, precio: null, nivelMinimo: null });
+            const nombresTablasGratis = [...tablasGratisLvl, ...tablasPredeterminadas].map(t => t.nombreId);
+            const todasMisTablas = [...new Set([...nombresTablasGratis, ...tablasCompradas])];
 
-                const perfilEmbed = new EmbedBuilder()
-        .setColor('#0b50b6')
-        .setTitle(`🎨 Armario Cosmético de ${interaction.user.username}`)
-        .setDescription('Elegí y equipá tus cosméticos desbloqueados o comprados.')
-        .addFields(
-            { name: '🌅 Fondo Equipado:', value: `\`${userXpData?.cartelEquipado || 'Ninguno'}\``, inline: true },
-            { name: '🪞 Fuente Equipada:', value: `\`${userXpData?.fuenteEquipada || 'Predeterminada'}\``, inline: true },
-            { name: '🪞 Tabla Equipada:', value: `\`${userXpData?.tablaEquipada || 'Predeterminada'}\``, inline: true }
-        )
-            
-             .setFooter({ text: 'Zeus Armario', iconURL: client.user.displayAvatarURL() });
+            const perfilEmbed = new EmbedBuilder()
+                .setColor('#0b50b6')
+                .setTitle(`🎨 Armario Cosmético de ${interaction.user.username}`)
+                .setDescription('Elegí y equipá tus cosméticos desbloqueados o comprados.')
+                .addFields(
+                                        { name: '🌅 Fondo Equipado:', value: `\`${userXpData?.cartelEquipado || 'Ninguno'}\``, inline: true },
+                    { name: '🪞 Fuente Equipada:', value: `\`${userXpData?.fuenteEquipada || 'Predeterminada'}\``, inline: true },
+                    { name: '🪞 Tabla Equipada:', value: `\`${userXpData?.tablaEquipada || 'Predeterminada'}\``, inline: true }
+                )
+                .setFooter({ text: 'Zeus Armario', iconURL: client.user.displayAvatarURL() });
 
             const componentes = [];
 
-            // Selector 1: Fondos
             if (todosMisFondos.length > 0) {
                 const menuBgs = new StringSelectMenuBuilder()
                     .setCustomId('equipar_cartel_menu')
@@ -758,7 +716,6 @@ const todasMisTablas = [...new Set([...nombresTablasGratis, ...tablasCompradas])
                 componentes.push(new ActionRowBuilder().addComponents(menuBgs));
             }
 
-            // Selector 2: Fuentes
             if (todasMisFuentes.length > 0) {
                 const menuFonts = new StringSelectMenuBuilder()
                     .setCustomId('equipar_fuente_menu')
@@ -767,7 +724,6 @@ const todasMisTablas = [...new Set([...nombresTablasGratis, ...tablasCompradas])
                 componentes.push(new ActionRowBuilder().addComponents(menuFonts));
             }
 
-            // Selector 3: Packs
             if (todosMisPacks.length > 0) {
                 const menuPacks = new StringSelectMenuBuilder()
                     .setCustomId('equipar_pack_menu')
@@ -776,13 +732,12 @@ const todasMisTablas = [...new Set([...nombresTablasGratis, ...tablasCompradas])
                 componentes.push(new ActionRowBuilder().addComponents(menuPacks));
             }
 
-            if (todasMisTablas.length > 0) {
-    const menuTablas = new StringSelectMenuBuilder()
-        .setCustomId('equipar_tabla_menu')
-        .setPlaceholder('🪞 Elegí una Tabla para equipar...')
-        .addOptions(todasMisTablas.map(t => ({ label: `Tabla: ${t}`, value: `equipar_tabla_${t}`, emoji: '🪞' })));
-    componentes.push(new ActionRowBuilder().addComponents(menuTablas));
-                
+                        if (todasMisTablas.length > 0) {
+                const menuTablas = new StringSelectMenuBuilder()
+                    .setCustomId('equipar_tabla_menu')
+                    .setPlaceholder('🪞 Elegí una Tabla para equipar...')
+                    .addOptions(todasMisTablas.map(t => ({ label: `Tabla: ${t}`, value: `equipar_tabla_${t}`, emoji: '🪞' })));
+                componentes.push(new ActionRowBuilder().addComponents(menuTablas));
             }
             
             return await interaction.editReply({ embeds: [perfilEmbed], components: componentes });
@@ -792,7 +747,6 @@ const todasMisTablas = [...new Set([...nombresTablasGratis, ...tablasCompradas])
         }
     }
 
-    // /añadir-xp
     if (commandName === 'añadir-xp') {
         try {
             if (interaction.user.id !== PEPO_ID) {
@@ -834,7 +788,6 @@ const todasMisTablas = [...new Set([...nombresTablasGratis, ...tablasCompradas])
         }
     }
 
-    // /quitar-xp
     if (commandName === 'quitar-xp') {
         try {
             if (interaction.user.id !== PEPO_ID) {
@@ -868,9 +821,7 @@ const todasMisTablas = [...new Set([...nombresTablasGratis, ...tablasCompradas])
             if (interaction.deferred) await interaction.editReply(`❌ Error: \`${err.message}\``);
         }
     }
-
-    // /critica (Canvas de Evaluación Semanal)
-    if (commandName === 'critica') {
+            if (commandName === 'critica') {
         if (interaction.user.id !== PEPO_ID) {
             return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
         }
@@ -892,45 +843,43 @@ const todasMisTablas = [...new Set([...nombresTablasGratis, ...tablasCompradas])
                 { nombre: 'Pinceles', val: interaction.options.getInteger('pinceles') ?? 70 }
             ];
 
-                            // Buscamos los datos del usuario que tira la crítica (o del artista)
-        let datosArtista = await UserXP.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
-        
-        const nombreCartel = datosArtista?.cartelEquipada || datosArtista?.cartelEquipado;
-        const fuenteNombre = datosArtista?.fuenteEquipada;
-        const nombreTabla = datosArtista?.tablaEquipada;
+            let datosArtista = await UserXP.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
+            
+            const nombreCartel = datosArtista?.cartelEquipada || datosArtista?.cartelEquipado;
+            const fuenteNombre = datosArtista?.fuenteEquipada;
+            const nombreTabla = datosArtista?.tablaEquipada;
 
-        let urlFondoUsar = null;
-        if (nombreCartel && nombreCartel !== 'Ninguno') {
-            const bgObj = await Background.findOne({ guildId: interaction.guild.id, nombreId: nombreCartel });
-            // Probamos si la URL se llama fondoUrl, urlImagen o imageUrl
-            if (bgObj) urlFondoUsar = bgObj.fondoUrl || bgObj.urlImagen || bgObj.imageUrl || bgObj.url;
-        }
+            let urlFondoUsar = null;
+            if (nombreCartel && nombreCartel !== 'Ninguno') {
+                const bgObj = await Background.findOne({ guildId: interaction.guild.id, nombreId: nombreCartel });
+                if (bgObj) urlFondoUsar = bgObj.fondoUrl || bgObj.urlImagen || bgObj.imageUrl || bgObj.url;
+            }
 
-        let urlTablaUsar = null;
-if (nombreTabla && nombreTabla !== 'Predeterminada') {
-    const regexTabla = new RegExp(`^${nombreTabla.trim()}$`, 'i'); // 👈 Ignora mayúsculas/minúsculas
-    const tablaObj = await Tabla.findOne({ 
-        guildId: interaction.guild.id, 
-        $or: [{ nombreId: regexTabla }, { nombre: regexTabla }, { titulo: regexTabla }] 
-    });
-    if (tablaObj) {
-        urlTablaUsar = tablaObj.urlImagen || tablaObj.url || tablaObj.imageUrl;
-    }
-}
+            let urlTablaUsar = null;
+            if (nombreTabla && nombreTabla !== 'Predeterminada') {
+                const regexTabla = new RegExp(`^${nombreTabla.trim()}$`, 'i');
+                const tablaObj = await Tabla.findOne({ 
+                    guildId: interaction.guild.id, 
+                    $or: [{ nombreId: regexTabla }, { nombre: regexTabla }, { titulo: regexTabla }] 
+                });
+                if (tablaObj) {
+                    urlTablaUsar = tablaObj.urlImagen || tablaObj.url || tablaObj.imageUrl;
+                }
+            }
 
-        const bufferFicha = await generarTarjetaCritica({
-            dibujoUrl: foto.url,
-            artistaNombre: artista.username,
-            artistaAvatarUrl: artista.displayAvatarURL({ extension: 'png', size: 256 }),
-            loBueno,
-            loMalo,
-            resumen,
-            fondoUrl: urlFondoUsar,
-            tablaUrl: urlTablaUsar, // 👈 3. PÁSALE LA URL DE LA TABLA A LA FUNCIÓN
-            positivoPct,
-            stats,
-            fuenteNombre
-        });
+            const bufferFicha = await generarTarjetaCritica({
+                dibujoUrl: foto.url,
+                artistaNombre: artista.username,
+                artistaAvatarUrl: artista.displayAvatarURL({ extension: 'png', size: 256 }),
+                loBueno,
+                loMalo,
+                resumen,
+                fondoUrl: urlFondoUsar,
+                tablaUrl: urlTablaUsar,
+                positivoPct,
+                stats,
+                fuenteNombre
+            });
 
             const attachment = new AttachmentBuilder(bufferFicha, { name: `critica_${artista.username}.png` });
             return await interaction.editReply({
@@ -943,7 +892,6 @@ if (nombreTabla && nombreTabla !== 'Predeterminada') {
         }
     }
 
-    // /comprar (TIENDA UNIFICADA)
     if (commandName === 'comprar') {
         await interaction.deferReply();
 
@@ -959,7 +907,6 @@ if (nombreTabla && nombreTabla !== 'Predeterminada') {
 
         const opcionesMenu = [];
 
-        // 1. Objetos Especiales Estáticos
         tiendaEmbed.addFields(
             { name: '⚡ Rol XP X2 (3,000 XP)', value: 'Duplica tu XP ganada por 1 día.' },
             { name: '👁️ Canales Ocultos (5,000 XP)', value: 'Acceso a canales ocultos por 1 día.' },
@@ -972,7 +919,6 @@ if (nombreTabla && nombreTabla !== 'Predeterminada') {
             { label: 'Caja de Regalo (2,000 XP)', description: 'Caja misteriosa de Zeus', value: 'comprar_caja', emoji: '🎁' }
         );
 
-        // 2. Fondos de MongoDB
         fondosTienda.forEach(f => {
             tiendaEmbed.addFields({
                 name: `🖼️ Fondo: ${f.nombreId} (${f.precio} XP)`,
@@ -986,7 +932,6 @@ if (nombreTabla && nombreTabla !== 'Predeterminada') {
             });
         });
 
-        // 3. Fuentes de MongoDB
         fuentesTienda.forEach(fu => {
             tiendaEmbed.addFields({
                 name: `🔤 Fuente: ${fu.nombreId} (${fu.precio} XP)`,
@@ -1000,7 +945,6 @@ if (nombreTabla && nombreTabla !== 'Predeterminada') {
             });
         });
 
-        // 4. Packs de MongoDB
         packsTienda.forEach(p => {
             tiendaEmbed.addFields({
                 name: `📦 Pack: ${p.nombreId} (${p.precio} XP)`,
@@ -1014,7 +958,6 @@ if (nombreTabla && nombreTabla !== 'Predeterminada') {
             });
         });
 
-                // 5. Tablas de MongoDB
         tablasTienda.forEach(t => {
             tiendaEmbed.addFields({
                 name: `🪞 Tabla: ${t.nombreId} (${t.precio} XP)`,
@@ -1038,7 +981,6 @@ if (nombreTabla && nombreTabla !== 'Predeterminada') {
         return;
     }
 
-    // /setfont
     if (commandName === 'setfont') {
         if (interaction.user.id !== PEPO_ID) {
             return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
@@ -1089,7 +1031,6 @@ if (nombreTabla && nombreTabla !== 'Predeterminada') {
         return;
     }
 
-    // /setpack
     if (commandName === 'setpack') {
         if (interaction.user.id !== PEPO_ID) {
             return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
@@ -1144,50 +1085,47 @@ if (nombreTabla && nombreTabla !== 'Predeterminada') {
         return;
     }
 
-        // --- COMANDO /settabla (SOLO PEPO) ---
     if (commandName === 'settabla') {
-    if (interaction.user.id !== PEPO_ID) {
-        return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
+        if (interaction.user.id !== PEPO_ID) {
+            return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
+        }
+
+        const nombreId = interaction.options.getString('nombre').toLowerCase().trim();
+        const imagenAdjunta = interaction.options.getAttachment('imagen');
+        const urlImagen = imagenAdjunta ? imagenAdjunta.url : null;
+        const precio = interaction.options.getInteger('precio') || null;
+        const nivelMinimo = interaction.options.getInteger('nivel') || null;
+
+        if (!urlImagen) {
+            return await interaction.reply({ content: '❌ Tenés que subir una imagen válida, maje.', ephemeral: true });
+        }
+
+        await Tabla.findOneAndUpdate(
+            { guildId: interaction.guild.id, nombreId },
+            { urlImagen, precio, nivelMinimo },
+            { upsert: true, new: true }
+        );
+
+        return await interaction.reply({
+            content: `✅ ¡Tabla **"${nombreId}"** guardada correctamente en MongoDB con tu imagen de la galería!`,
+            ephemeral: true
+        });
     }
+}); 
 
-    const nombreId = interaction.options.getString('nombre').toLowerCase().trim();
-    const imagenAdjunta = interaction.options.getAttachment('imagen'); // 👈 JALA DE TU GALERÍA
-    const urlImagen = imagenAdjunta ? imagenAdjunta.url : null;
-    const precio = interaction.options.getInteger('precio') || null;
-    const nivelMinimo = interaction.options.getInteger('nivel') || null;
-
-    if (!urlImagen) {
-        return await interaction.reply({ content: '❌ Tenés que subir una imagen válida, maje.', ephemeral: true });
-    }
-
-    await Tabla.findOneAndUpdate(
-        { guildId: interaction.guild.id, nombreId },
-        { urlImagen, precio, nivelMinimo },
-        { upsert: true, new: true }
-    );
-
-    return await interaction.reply({
-        content: `✅ ¡Tabla **"${nombreId}"** guardada correctamente en MongoDB con tu imagen de la galería!`,
-        ephemeral: true
-    });
-        
-    }
-    
-});
-
-// --- MANEJADOR DE SELECCIONES EN LA TIENDA ---
+// --- MANEJADOR DE SELECCIONES EN LA TIENDA Y EQUIPAMIENTO ---
 client.on('interactionCreate', async interaction => {
     if (!interaction.isStringSelectMenu()) return;
 
     const { customId, values } = interaction;
 
-    if (customId === 'tienda_menu') {
-        await interaction.deferReply({ ephemeral: true });
-        const opcion = values[0];
-        const userId = interaction.user.id;
-        const guildId = interaction.guild.id;
+    try {
+        if (customId === 'tienda_menu') {
+            await interaction.deferReply({ ephemeral: true });
+            const opcion = values[0];
+            const userId = interaction.user.id;
+            const guildId = interaction.guild.id;
 
-        try {
             let userXpData = await UserXP.findOne({ userId, guildId });
             if (!userXpData) userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
 
@@ -1287,7 +1225,7 @@ client.on('interactionCreate', async interaction => {
                 return await interaction.editReply(`🖼️ ¡Compraste y equipaste el fondo **${bgId}** con éxito!`);
             }
 
-            // 5. FUENTES DE MONGO
+                        // 5. FUENTES DE MONGO
             if (opcion.startsWith('comprar_font_')) {
                 const fontId = opcion.replace('comprar_font_', '');
                 const fontObj = await Font.findOne({ guildId, nombreId: fontId });
@@ -1338,22 +1276,30 @@ client.on('interactionCreate', async interaction => {
                 return await interaction.editReply(`📦 ¡Compraste y equipaste el pack combo **${packId}** con éxito!`);
             }
 
-                    // 7. TABLAS DE MONGO
-        if (opcion.startsWith('comprar_tabla_')) {
-            const tablaId = opcion.replace('comprar_tabla_', '');
-            const tablaObj = await Tabla.findOne({ guildId, nombreId: tablaId });
+            // 7. TABLAS DE MONGO
+            if (opcion.startsWith('comprar_tabla_')) {
+                const tablaId = opcion.replace('comprar_tabla_', '');
+                const tablaObj = await Tabla.findOne({ guildId, nombreId: tablaId });
 
-            if (!tablaObj) return await interaction.editReply('❌ La tabla ya no existe.');
-            if (tablaObj.nivelMinimo && userXpData.level < tablaObj.nivelMinimo) {
-                return await interaction.editReply(`❌ Requerís **Nivel ${tablaObj.nivelMinimo}** para comprar esta tabla.`);
+                if (!tablaObj) return await interaction.editReply('❌ La tabla ya no existe.');
+                if (tablaObj.nivelMinimo && userXpData.level < tablaObj.nivelMinimo) {
+                    return await interaction.editReply(`❌ Requerís **Nivel ${tablaObj.nivelMinimo}** para comprar esta tabla.`);
+                }
+                if (xpTotalActual < tablaObj.precio) {
+                    return await interaction.editReply(`❌ Necesitás **${tablaObj.precio} XP** para comprar esta tabla.`);
+                }
+
+                recalcularProgreso(userXpData, xpTotalActual - tablaObj.precio);
+                if (!userXpData.tablasCompradas) userXpData.tablasCompradas = [];
+                if (!userXpData.tablasCompradas.includes(tablaId)) userXpData.tablasCompradas.push(tablaId);
+                userXpData.tablaEquipada = tablaId;
+                await userXpData.save();
+
+                return await interaction.editReply(`🪞 ¡Compraste y equipaste la tabla **${tablaId}** con éxito!`);
             }
-            if (xpTotalActual < tablaObj.precio) {
-                return await interaction.editReply(`❌ Necesitás **${tablaObj.precio} XP** para comprar esta tabla.`);
-        // --- C. MENÚS DE EQUIPAMIENTO DEL PERFIL ---
-if (interaction.isStringSelectMenu()) {
-    try {
-        const { customId, values } = interaction;
+        }
 
+        // --- MENÚS DE EQUIPAMIENTO DEL PERFIL ---
         if (customId === 'equipar_tabla_menu') {
             await interaction.deferReply({ ephemeral: true });
             const tablaId = values[0].replace('equipar_tabla_', '').trim();
@@ -1407,9 +1353,10 @@ if (interaction.isStringSelectMenu()) {
             return await interaction.editReply({ content: `📦 ¡Te equipaste el pack **"${packId}"**!` });
         }
     } catch (err) {
-        console.error("Error general en interacciones:", err);
+        console.error("Error general en interacciones de menús:", err);
     }
-}
 });
 
 client.login(process.env.DISCORD_TOKEN);
+                    
+                           
