@@ -881,28 +881,36 @@ const todasMisTablas = [...new Set([...nombresTablasGratis, ...tablasCompradas])
                 { nombre: 'Pinceles', val: interaction.options.getInteger('pinceles') ?? 70 }
             ];
 
-            let datosArtista = await UserXP.findOne({ userId: artista.id, guildId: interaction.guild.id });
-            const nombreCartel = datosArtista?.cartelEquipado;
-            const fuenteNombre = datosArtista?.fuenteEquipada;
+                    let datosArtista = await UserXP.findOne({ userId: artista.id, guildId: interaction.guild.id });
+        const nombreCartel = datosArtista?.cartelEquipada;
+        const fuenteNombre = datosArtista?.fuenteEquipada;
+        const nombreTabla = datosArtista?.tablaEquipada; // 👈 1. OBTENÉ EL NOMBRE DE LA TABLA EQUIPADA
 
-            let urlFondoUsar = null;
-            if (nombreCartel) {
-                const bgObj = await Background.findOne({ guildId: interaction.guild.id, nombreId: nombreCartel });
-                if (bgObj) urlFondoUsar = bgObj.imageUrl;
-            }
+        let urlFondoUsar = null;
+        if (nombreCartel) {
+            const bgObj = await Background.findOne({ guildId: interaction.guild.id, nombreId: nombreCartel });
+            if (bgObj) urlFondoUsar = bgObj.imageUrl;
+        }
 
-            const bufferFicha = await generarTarjetaCritica({
-                dibujoUrl: foto.url,
-                artistaNombre: artista.username,
-                artistaAvatarUrl: artista.displayAvatarURL({ extension: 'png', size: 256 }),
-                loBueno,
-                loMalo,
-                resumen,
-                fondoUrl: urlFondoUsar,
-                positivoPct,
-                stats,
-                fuenteNombre
-            });
+        let urlTablaUsar = null; // 👈 2. BUSCÁ LA URL DE LA TABLA EN MONGODB
+        if (nombreTabla) {
+            const tablaObj = await Tabla.findOne({ guildId: interaction.guild.id, nombreId: nombreTabla });
+            if (tablaObj) urlTablaUsar = tablaObj.urlImagen;
+        }
+
+        const bufferFicha = await generarTarjetaCritica({
+            dibujoUrl: foto.url,
+            artistaNombre: artista.username,
+            artistaAvatarUrl: artista.displayAvatarURL({ extension: 'png', size: 256 }),
+            loBueno,
+            loMalo,
+            resumen,
+            fondoUrl: urlFondoUsar,
+            tablaUrl: urlTablaUsar, // 👈 3. PÁSALE LA URL DE LA TABLA A LA FUNCIÓN
+            positivoPct,
+            stats,
+            fuenteNombre
+        });
 
             const attachment = new AttachmentBuilder(bufferFicha, { name: `critica_${artista.username}.png` });
             return await interaction.editReply({
