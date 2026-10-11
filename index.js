@@ -203,7 +203,7 @@ const dataTabla = {
     description: 'Sube/asigna una tabla o marco translúcido a MongoDB (Exclusivo Pepo)',
     options: [
         { name: 'nombre', type: ApplicationCommandOptionType.String, description: 'Nombre ID de la tabla', required: true },
-        { name: 'url', type: ApplicationCommandOptionType.String, description: 'URL de la imagen o textura', required: true },
+        { name: 'imagen', type: ApplicationCommandOptionType.Attachment, description: 'Subir imagen desde galería', required: true }, // 👈 AHORA ES ATTACHMENT
         { name: 'precio', type: ApplicationCommandOptionType.Integer, description: 'Precio en XP', required: false },
         { name: 'nivel', type: ApplicationCommandOptionType.Integer, description: 'Nivel mínimo', required: false }
     ]
@@ -1146,25 +1146,31 @@ if (nombreTabla && nombreTabla !== 'Predeterminada') {
 
         // --- COMANDO /settabla (SOLO PEPO) ---
     if (commandName === 'settabla') {
-        if (interaction.user.id !== PEPO_ID) {
-            return await interaction.reply({ content: '❌ Solo el jefe Pepo puede usar este comando.', ephemeral: true });
-        }
+    if (interaction.user.id !== PEPO_ID) {
+        return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
+    }
 
-        const nombreId = interaction.options.getString('nombre');
-        const urlImagen = interaction.options.getString('url');
-        const precio = interaction.options.getInteger('precio') || null;
-        const nivelMinimo = interaction.options.getInteger('nivel') || null;
+    const nombreId = interaction.options.getString('nombre').toLowerCase().trim();
+    const imagenAdjunta = interaction.options.getAttachment('imagen'); // 👈 JALA DE TU GALERÍA
+    const urlImagen = imagenAdjunta ? imagenAdjunta.url : null;
+    const precio = interaction.options.getInteger('precio') || null;
+    const nivelMinimo = interaction.options.getInteger('nivel') || null;
 
-        await Tabla.findOneAndUpdate(
-            { guildId: interaction.guild.id, nombreId },
-            { urlImagen, precio, nivelMinimo },
-            { upsert: true, new: true }
-        );
+    if (!urlImagen) {
+        return await interaction.reply({ content: '❌ Tenés que subir una imagen válida, maje.', ephemeral: true });
+    }
 
-        return await interaction.reply({ 
-            content: `✅ ¡Tabla/Panel **${nombreId}** guardada correctamente en la base de datos y agregada a la tienda/armario!`,
-            ephemeral: true 
-        });
+    await Tabla.findOneAndUpdate(
+        { guildId: interaction.guild.id, nombreId },
+        { urlImagen, precio, nivelMinimo },
+        { upsert: true, new: true }
+    );
+
+    return await interaction.reply({
+        content: `✅ ¡Tabla **"${nombreId}"** guardada correctamente en MongoDB con tu imagen de la galería!`,
+        ephemeral: true
+    });
+        
     }
     
 });
@@ -1356,8 +1362,8 @@ client.on('interactionCreate', async interaction => {
         }
             
             if (customId === 'equipar_tabla_menu') {
-    await interaction.deferUpdate(); // 👈 Notifica a Discord inmediatamente
-    
+    await interaction.deferReply({ ephemeral: true }); // 👈 RESPONDE DE UNA A DISCORD PARA EVITAR EL TIMEOUT
+
     const tablaId = values[0].replace('equipar_tabla_', '').trim();
     let userXpData = await UserXP.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
     if (!userXpData) userXpData = new UserXP({ userId: interaction.user.id, guildId: interaction.guild.id });
@@ -1365,15 +1371,9 @@ client.on('interactionCreate', async interaction => {
     userXpData.tablaEquipada = tablaId;
     await userXpData.save();
 
-    return await interaction.followUp({ content: `¡Te equipaste la tabla **${tablaId}** con éxito!`, ephemeral: true });
-                
+    return await interaction.editReply({ content: `✅ ¡Te equipaste la tabla **"${tablaId}"** con éxito!` });
             }
             
-        } catch (err) {
-            console.error("Clavo en la tienda:", err);
-            return await interaction.editReply('❌ Puchica, algo trono feo al intentar hacer la compra.');
-        }
-    }
 
         // --- MANEJADORES DE MENÚS DEL PERFIL (/perfil) ---
     if (customId === 'equipar_cartel_menu') {
