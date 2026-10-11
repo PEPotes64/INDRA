@@ -1349,56 +1349,82 @@ client.on('interactionCreate', async interaction => {
             }
             if (xpTotalActual < tablaObj.precio) {
                 return await interaction.editReply(`❌ Necesitás **${tablaObj.precio} XP** para comprar esta tabla.`);
+// --- MANEJADOR PRINCIPAL DE INTERACCIONES Y MENÚS ---
+client.on('interactionCreate', async interaction => {
+    try {
+        // A. COMANDOS SLASH
+        if (interaction.isChatInputCommand()) {
+            const { commandName } = interaction;
+
+            if (commandName === 'settabla') {
+                if (interaction.user.id !== PEPO_ID) {
+                    return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
+                }
+
+                const nombreId = interaction.options.getString('nombre').toLowerCase().trim();
+                const imagenAdjunta = interaction.options.getAttachment('imagen');
+                const urlImagen = imagenAdjunta ? imagenAdjunta.url : null;
+                const precio = interaction.options.getInteger('precio') || null;
+                const nivelMinimo = interaction.options.getInteger('nivel') || null;
+
+                if (!urlImagen) {
+                    return await interaction.reply({ content: '❌ Tenés que subir una imagen válida.', ephemeral: true });
+                }
+
+                await Tabla.findOneAndUpdate(
+                    { guildId: interaction.guild.id, nombreId },
+                    { urlImagen, precio, nivelMinimo },
+                    { upsert: true, new: true }
+                );
+
+                return await interaction.reply({
+                    content: `✅ ¡Tabla **"${nombreId}"** guardada correctamente en MongoDB!`,
+                    ephemeral: true
+                });
             }
-
-            recalcularProgreso(userXpData, xpTotalActual - tablaObj.precio);
-            if (!userXpData.tablasCompradas) userXpData.tablasCompradas = [];
-            if (!userXpData.tablasCompradas.includes(tablaId)) userXpData.tablasCompradas.push(tablaId);
-
-            userXpData.tablaEquipada = tablaId;
-            await userXpData.save();
-
-            return await interaction.editReply(`🪞 ¡Compraste y equipaste la tabla **${tablaId}** con éxito!`);
         }
-            
+
+        // B. MENÚS DESPLEGABLES (StringSelectMenu)
+        if (interaction.isStringSelectMenu()) {
+            const { customId, values } = interaction;
+
             if (customId === 'equipar_tabla_menu') {
-    await interaction.deferReply({ ephemeral: true }); // 👈 RESPONDE DE UNA A DISCORD PARA EVITAR EL TIMEOUT
+                await interaction.deferReply({ ephemeral: true });
+                const tablaId = values[0].replace('equipar_tabla_', '').trim();
+                let userXpData = await UserXP.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
+                if (!userXpData) userXpData = new UserXP({ userId: interaction.user.id, guildId: interaction.guild.id });
 
-    const tablaId = values[0].replace('equipar_tabla_', '').trim();
-    let userXpData = await UserXP.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
-    if (!userXpData) userXpData = new UserXP({ userId: interaction.user.id, guildId: interaction.guild.id });
+                userXpData.tablaEquipada = tablaId;
+                await userXpData.save();
 
-    userXpData.tablaEquipada = tablaId;
-    await userXpData.save();
-
-    return await interaction.editReply({ content: `✅ ¡Te equipaste la tabla **"${tablaId}"** con éxito!` });
+                return await interaction.editReply({ content: `✅ ¡Te equipaste la tabla **"${tablaId}"** con éxito!` });
             }
-            
 
-        // --- MANEJADORES DE MENÚS DEL PERFIL (/perfil) ---
-    if (customId === 'equipar_cartel_menu') {
-        await interaction.deferReply({ ephemeral: true });
-        const cartelId = values[0].replace('equipar_cartel_', '');
-        let userXpData = await UserXP.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
-        if (!userXpData) userXpData = new UserXP({ userId: interaction.user.id, guildId: interaction.guild.id });
+            if (customId === 'equipar_cartel_menu') {
+                await interaction.deferReply({ ephemeral: true });
+                const cartelId = values[0].replace('equipar_cartel_', '');
+                let userXpData = await UserXP.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
+                if (!userXpData) userXpData = new UserXP({ userId: interaction.user.id, guildId: interaction.guild.id });
 
-        userXpData.cartelEquipado = cartelId;
-        await userXpData.save();
-        return await interaction.editReply(`🖼️ ¡Te equipaste el fondo **${cartelId}** con éxito!`);
-    }
+                userXpData.cartelEquipado = cartelId;
+                await userXpData.save();
 
-    if (customId === 'equipar_fuente_menu') {
-        await interaction.deferReply({ ephemeral: true });
-        const fuenteId = values[0].replace('equipar_fuente_', '');
-        let userXpData = await UserXP.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
-        if (!userXpData) userXpData = new UserXP({ userId: interaction.user.id, guildId: interaction.guild.id });
+                return await interaction.editReply({ content: `🖼️ ¡Te equipaste el fondo **"${cartelId}"** con éxito!` });
+            }
 
-        userXpData.fuenteEquipada = fuenteId;
-        await userXpData.save();
-        return await interaction.editReply(`🔤 ¡Te equipaste la fuente **${fuenteId}** con éxito!`);
-    }
+            if (customId === 'equipar_fuente_menu') {
+                await interaction.deferReply({ ephemeral: true });
+                const fuenteId = values[0].replace('equipar_fuente_', '');
+                let userXpData = await UserXP.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
+                if (!userXpData) userXpData = new UserXP({ userId: interaction.user.id, guildId: interaction.guild.id });
 
-                    if (customId === 'equipar_pack_menu') {
+                userXpData.fuenteEquipada = fuenteId;
+                await userXpData.save();
+
+                return await interaction.editReply({ content: `🔤 ¡Te equipaste la fuente **"${fuenteId}"** con éxito!` });
+            }
+
+            if (customId === 'equipar_pack_menu') {
                 await interaction.deferReply({ ephemeral: true });
                 const packId = values[0].replace('equipar_pack_', '');
                 const packObj = await Pack.findOne({ guildId: interaction.guild.id, nombreId: packId });
@@ -1412,12 +1438,13 @@ client.on('interactionCreate', async interaction => {
                 userXpData.fuenteEquipada = packObj.fuenteNombreId;
                 await userXpData.save();
 
-                return await interaction.editReply({ content: `📦 ¡Te equipaste el pack **${packId}**!` });
+                return await interaction.editReply({ content: `📦 ¡Te equipaste el pack **"${packId}"** con éxito!` });
             }
         }
     } catch (err) {
-        console.error("Clavo general en las interacciones/menús:", err);
+        console.error("Error general en interacciones/menús:", err);
     }
 });
 
 client.login(process.env.DISCORD_TOKEN);
+                
