@@ -301,7 +301,11 @@ async function generarTarjetaCritica({
     stats, 
     fuenteNombre 
 }) {
-
+    
+    const width = 1000;
+    const height = 600;
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d');
     // Nombre de fuente con fallback seguro
     const fontName = fuenteNombre ? fuenteNombre : 'sans-serif';
     const fontMain = `"${fontName}", sans-serif`;
