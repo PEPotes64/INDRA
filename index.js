@@ -1403,10 +1403,9 @@ client.on('interactionCreate', async interaction => {
                 userXpData.fuenteEquipada = packObj.fuenteNombreId;
                 await userXpData.save();
 
-                return await interaction.editReply({ content: `📦 ¡Te equipaste el pack **"${packId}"** con éxito!` });
+                return await interaction.editReply({ content: `📦 ¡Te equipaste el pack **${packId}**!` });
             }
         }
-
     } catch (err) {
         console.error("Error general en interacciones:", err);
     }
