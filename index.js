@@ -1398,7 +1398,7 @@ client.on('interactionCreate', async interaction => {
         return await interaction.editReply(`🔤 ¡Te equipaste la fuente **${fuenteId}** con éxito!`);
     }
 
-    if (customId === 'equipar_pack_menu') {
+        if (customId === 'equipar_pack_menu') {
         await interaction.deferReply({ ephemeral: true });
         const packId = values[0].replace('equipar_pack_', '');
         const packObj = await Pack.findOne({ guildId: interaction.guild.id, nombreId: packId });
@@ -1411,13 +1411,15 @@ client.on('interactionCreate', async interaction => {
         userXpData.cartelEquipado = packObj.fondoNombreId;
         userXpData.fuenteEquipada = packObj.fuenteNombreId;
         await userXpData.save();
-        return await interaction.editReply(`📦 ¡Te equipaste el pack **${packId}** (Fondo: \`${packObj.fondoNombreId}\` + Fuente: \`${packObj.fuenteNombreId}\`)!`);
+
+        return await interaction.editReply({ content: `📦 ¡Te equipaste el pack **${packId}**!` });
     }
 
-    } catch (err) {
+} catch (err) {
     console.error("Clavo general en las interacciones/menús:", err);
-            
-    }
+}
+
+});
 
 client.login(process.env.DISCORD_TOKEN);
-        
+    
