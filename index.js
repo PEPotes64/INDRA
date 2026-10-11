@@ -666,7 +666,7 @@ client.on('interactionCreate', async interaction => {
             const fuentesCompradas = userXpData?.fuentesCompradas || [];
             const fuentesGratisLvl = await Font.find({ guildId, precio: null, nivelMinimo: { $ne: null, $lte: nivelUsuario } });
             const fuentesPredeterminadas = await Font.find({ guildId, precio: null, nivelMinimo: null });
-            const nombresFuentesGratis = [...fuentesGratisLvl, ...fuentesPredeterminados].map(f => f.nombreId);
+            const nombresFuentesGratis = [...fuentesGratisLvl, ...fuentesPredeterminadas].map(f => f.nombreId);
             const todasMisFuentes = [...new Set([...nombresFuentesGratis, ...fuentesCompradas])];
 
             // --- C. PACKS ---
