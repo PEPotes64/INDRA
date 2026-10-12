@@ -281,7 +281,7 @@ const verificarCooldown = (ultimaFecha) => {
     return null;
 };
 
-// --- RENDERIZADOR CANVAS (FONDO REAL Y TRANSPARENCIAS CORREGIDAS) ---
+// --- RENDERIZADOR CANVAS BLINDADO CONTRA LINKS CADUCADOS/INVÁLIDOS ---
 async function generarTarjetaCritica({ 
     dibujoUrl, 
     artistaNombre, 
@@ -309,37 +309,41 @@ async function generarTarjetaCritica({
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
 
-    // --- 1. RENDERIZAR EL FONDO (PERSONALIZADO O DEGRADADO ELEGANTE) ---
+    // --- 1. RENDERIZAR EL FONDO ---
     let fondoCargadoExitosamente = false;
 
     if (fondoUrl) {
         try {
             const resBg = await fetch(fondoUrl);
-            if (resBg.ok) {
+            const contentType = resBg.headers.get('content-type') || '';
+            
+            // Verificamos que responda 200 OK y que sea realmente una imagen válida
+            if (resBg.ok && contentType.includes('image')) {
                 const bufBg = Buffer.from(await resBg.arrayBuffer());
                 const fondoImg = await loadImage(bufBg);
                 ctx.drawImage(fondoImg, 0, 0, width, height);
                 fondoCargadoExitosamente = true;
-                console.log("✅ Fondo de usuario renderizado correctamente:", fondoUrl);
+                console.log("✅ [CANVAS] Fondo cargado correctamente:", fondoUrl);
+            } else {
+                console.warn(`⚠️ [CANVAS] El link del fondo falló o expiró (Status: ${resBg.status}, Type: ${contentType})`);
             }
         } catch (e) {
-            console.error("❌ Error cargando fondo del artista:", e);
+            console.error("❌ [CANVAS] Error cargando fondo del artista:", e.message);
         }
     }
 
-    // SI NO TIENE FONDO O FALLÓ LA URL, DIBUJAMOS UN FONDO DEGRADADO VIVO (NADA DE NEGRO ABSOLUTO)
+    // SI EL FONDO FALLA O CADUCÓ, DIBUJAMOS UN DEGRADADO ESPACIAL BONITO (NADA DE FONDO NEGRO)
     if (!fondoCargadoExitosamente) {
         const grad = ctx.createLinearGradient(0, 0, width, height);
-        grad.addColorStop(0, '#1e1035');
+        grad.addColorStop(0, '#1a1035');
         grad.addColorStop(0.5, '#0f172a');
         grad.addColorStop(1, '#090d16');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, width, height);
     }
 
-    // --- 2. CRISTAL TRANSLÚCIDO (SOLO UN BORDE Y RECTÁNGULO MUY SUAVE) ---
+    // --- 2. CRISTAL / TABLA TRANSLÚCIDA (PROTEGIDA CONTRA ERRORES) ---
     ctx.save();
-    // Usamos una capa súper transparente (25%) para QUE EL FONDO SÍ SE PUEDA VER DETRÁS
     ctx.fillStyle = 'rgba(15, 15, 20, 0.35)';
     ctx.beginPath();
     ctx.roundRect(20, 20, width - 40, height - 40, 20);
@@ -352,7 +356,9 @@ async function generarTarjetaCritica({
     if (tablaUrl) {
         try {
             const resTabla = await fetch(tablaUrl);
-            if (resTabla.ok) {
+            const contentTypeTabla = resTabla.headers.get('content-type') || '';
+
+            if (resTabla.ok && contentTypeTabla.includes('image')) {
                 const bufTabla = Buffer.from(await resTabla.arrayBuffer());
                 const imgTabla = await loadImage(bufTabla);
 
@@ -363,9 +369,12 @@ async function generarTarjetaCritica({
                 ctx.globalAlpha = 0.85;
                 ctx.drawImage(imgTabla, -height / 2, -width / 2, height, width);
                 ctx.restore();
+                console.log("✅ [CANVAS] Tabla renderizada con éxito.");
+            } else {
+                console.warn(`⚠️ [CANVAS] El link de la tabla falló o expiró (Status: ${resTabla.status})`);
             }
         } catch (e) {
-            console.error("Error al cargar la tabla de vidrio:", e);
+            console.error("⚠️ [CANVAS] No se pudo cargar la tabla de vidrio (ignorando suavemente):", e.message);
         }
     }
     ctx.restore();
@@ -382,7 +391,7 @@ async function generarTarjetaCritica({
                 ctx.restore();
             }
         } catch (errDibujo) {
-            console.error("Error al cargar dibujo:", errDibujo);
+            console.error("❌ [CANVAS] Error al cargar el dibujo:", errDibujo.message);
         }
     }
 
@@ -449,7 +458,7 @@ async function generarTarjetaCritica({
             }
         }
     } catch (e) {
-        console.error("Error avatar en canvas:", e);
+        console.error("❌ [CANVAS] Error avatar:", e.message);
     }
 
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
@@ -539,7 +548,8 @@ async function generarTarjetaCritica({
 
     return canvas.toBuffer('image/png');
     
-         }
+        }
+            
             
 // --- CHEQUEO DE ROLES ---
 async function checkearRoles(member, nivelActual, guild) {
