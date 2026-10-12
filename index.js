@@ -1036,56 +1036,7 @@ client.on('interactionCreate', async interaction => {
         return;
     }
 
-    if (commandName === 'setfont') {
-        if (interaction.user.id !== PEPO_ID) {
-            return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
-        }
-        await interaction.deferReply({ ephemeral: true });
-
-        try {
-            const nombreId = interaction.options.getString('nombre_id').toLowerCase();
-            const archivo = interaction.options.getAttachment('archivo');
-            const precio = interaction.options.getInteger('precio');
-            const nivel = interaction.options.getInteger('nivel');
-            const usuarioEspecial = interaction.options.getUser('usuario');
-
-            if (!archivo.name.endsWith('.ttf') && !archivo.name.endsWith('.otf')) {
-                return await interaction.editReply('❌ Puchica maje, solo podés subir archivos de fuente .ttf o .otf');
-            }
-
-            const response = await fetch(archivo.url);
-            const buffer = Buffer.from(await response.arrayBuffer());
-            GlobalFonts.register(buffer, nombreId);
-
-            await Font.findOneAndUpdate(
-                { guildId: interaction.guild.id, nombreId },
-                {
-                    fontUrl: archivo.url,
-                    precio: precio !== null ? precio : null,
-                    nivelMinimo: nivel !== null ? nivel : null
-                },
-                { upsert: true, new: true }
-            );
-
-            if (usuarioEspecial) {
-                let userXpData = await UserXP.findOne({ userId: usuarioEspecial.id, guildId: interaction.guild.id });
-                if (!userXpData) userXpData = new UserXP({ userId: usuarioEspecial.id, guildId: interaction.guild.id });
-                if (!userXpData.fuentesCompradas) userXpData.fuentesCompradas = [];
-                if (!userXpData.fuentesCompradas.includes(nombreId)) userXpData.fuentesCompradas.push(nombreId);
-                userXpData.fuenteEquipada = nombreId;
-                await userXpData.save();
-
-                return await interaction.editReply(`🎁 ¡Fuente **${nombreId}** instalada, regalada y equipada a <@${usuarioEspecial.id}>!`);
-            }
-
-            await interaction.editReply(`✅ ¡Fuente **${nombreId}** registrada con éxito en Canvas y cargada al sistema!`);
-        } catch (err) {
-            console.error("Error en /setfont:", err);
-            await interaction.editReply(`❌ Puchica maje, dio un error al registrar la fuente: \`${err.message}\``);
-        }
-        return;
-    }
-
+        // --- 1. COMANDO /SETPACK ---
     if (commandName === 'setpack') {
         if (interaction.user.id !== PEPO_ID) {
             return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
@@ -1093,9 +1044,9 @@ client.on('interactionCreate', async interaction => {
         await interaction.deferReply({ ephemeral: true });
 
         try {
-            const nombrePack = interaction.options.getString('nombre_pack').toLowerCase();
-            const fondoId = interaction.options.getString('fondo_id').toLowerCase();
-            const fuenteId = interaction.options.getString('fuente_id').toLowerCase();
+            const nombrePack = interaction.options.getString('nombre_pack').toLowerCase().trim();
+            const fondoId = interaction.options.getString('fondo_id').toLowerCase().trim();
+            const fuenteId = interaction.options.getString('fuente_id').toLowerCase().trim();
             const precio = interaction.options.getInteger('precio');
             const nivel = interaction.options.getInteger('nivel');
             const usuarioEspecial = interaction.options.getUser('usuario');
@@ -1129,41 +1080,150 @@ client.on('interactionCreate', async interaction => {
                 userXpData.fuenteEquipada = fuenteId;
                 await userXpData.save();
 
-                return await interaction.editReply(`🎁 ¡Pack Combo **${nombrePack}** regalado y equipado a <@${usuarioEspecial.id}>!`);
+                return await interaction.editReply(`🎁 ¡Pack Combo **"${nombrePack}"** regalado y equipado a <@${usuarioEspecial.id}>!`);
             }
 
-            await interaction.editReply(`📦 ¡Pack Combo **${nombrePack}** creado y añadido a la tienda con éxito!`);
+            return await interaction.editReply(`📦 ¡Pack Combo **"${nombrePack}"** creado y añadido a la tienda con éxito!`);
         } catch (err) {
             console.error("Error en /setpack:", err);
-            await interaction.editReply(`❌ Error en /setpack: \`${err.message}\``);
+            return await interaction.editReply(`❌ Error en /setpack: \`${err.message}\``);
         }
-        return;
     }
 
+    // --- 2. COMANDO /SETFONT ---
+    if (commandName === 'setfont') {
+        if (interaction.user.id !== PEPO_ID) {
+            return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
+        }
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            const nombreId = interaction.options.getString('nombre_id').toLowerCase().trim();
+            const archivo = interaction.options.getAttachment('archivo');
+            const precio = interaction.options.getInteger('precio');
+            const nivel = interaction.options.getInteger('nivel');
+            const usuarioEspecial = interaction.options.getUser('usuario');
+
+            if (!archivo.name.endsWith('.ttf') && !archivo.name.endsWith('.otf')) {
+                return await interaction.editReply('❌ Puchica maje, solo podés subir archivos de fuente .ttf o .otf');
+            }
+
+            const response = await fetch(archivo.url);
+            const buffer = Buffer.from(await response.arrayBuffer());
+            GlobalFonts.register(buffer, nombreId);
+
+            await Font.findOneAndUpdate(
+                { guildId: interaction.guild.id, nombreId },
+                {
+                    fontUrl: archivo.url,
+                    precio: precio !== null ? precio : null,
+                    nivelMinimo: nivel !== null ? nivel : null
+                },
+                { upsert: true, new: true }
+            );
+
+            if (usuarioEspecial) {
+                let userXpData = await UserXP.findOne({ userId: usuarioEspecial.id, guildId: interaction.guild.id });
+                if (!userXpData) userXpData = new UserXP({ userId: usuarioEspecial.id, guildId: interaction.guild.id });
+                if (!userXpData.fuentesCompradas) userXpData.fuentesCompradas = [];
+                if (!userXpData.fuentesCompradas.includes(nombreId)) userXpData.fuentesCompradas.push(nombreId);
+                userXpData.fuenteEquipada = nombreId;
+                await userXpData.save();
+
+                return await interaction.editReply(`🎁 ¡Fuente **"${nombreId}"** instalada y regalada a <@${usuarioEspecial.id}>!`);
+            }
+
+            return await interaction.editReply(`✅ ¡Fuente **"${nombreId}"** registrada con éxito en Canvas y Mongo!`);
+        } catch (err) {
+            console.error("Error en /setfont:", err);
+            return await interaction.editReply(`❌ Puchica maje, dio un error al registrar la fuente: \`${err.message}\``);
+        }
+    }
+
+    // --- 3. COMANDO /SETBG ---
+    if (commandName === 'setbg') {
+        if (interaction.user.id !== PEPO_ID) {
+            return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
+        }
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            const nombreId = interaction.options.getString('nombre').toLowerCase().trim();
+            const imagenAdjunta = interaction.options.getAttachment('imagen');
+            const urlImagen = imagenAdjunta ? imagenAdjunta.url : null;
+            const precio = interaction.options.getInteger('precio') || null;
+            const nivelMinimo = interaction.options.getInteger('nivel') || null;
+
+            if (!urlImagen) {
+                return await interaction.editReply('❌ Tenés que subir una imagen válida, maje.');
+            }
+
+            await Background.findOneAndUpdate(
+                { guildId: interaction.guild.id, nombreId },
+                { fondoUrl: urlImagen, urlImagen, precio, nivelMinimo },
+                { upsert: true, new: true }
+            );
+
+            return await interaction.editReply(`✅ ¡Fondo **"${nombreId}"** guardado/actualizado correctamente en Mongo!`);
+        } catch (err) {
+            console.error("Error en /setbg:", err);
+            return await interaction.editReply(`❌ Error al guardar el fondo: \`${err.message}\``);
+        }
+    }
+
+    // --- 4. COMANDO /DELBG ---
+    if (commandName === 'delbg') {
+        if (interaction.user.id !== PEPO_ID) {
+            return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
+        }
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            const nombreId = interaction.options.getString('nombre').toLowerCase().trim();
+            const deleted = await Background.findOneAndDelete({ 
+                guildId: interaction.guild.id, 
+                nombreId: new RegExp(`^${nombreId}$`, 'i') 
+            });
+
+            if (!deleted) {
+                return await interaction.editReply(`❌ No se encontró ningún fondo con el nombre **"${nombreId}"**.`);
+            }
+
+            return await interaction.editReply(`🗑️ ¡Fondo **"${nombreId}"** eliminado correctamente de Mongo!`);
+        } catch (err) {
+            console.error("Error en /delbg:", err);
+            return await interaction.editReply(`❌ Error al eliminar fondo: \`${err.message}\``);
+        }
+    }
+
+    // --- 5. COMANDO /SETTABLA ---
     if (commandName === 'settabla') {
         if (interaction.user.id !== PEPO_ID) {
             return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
         }
+        await interaction.deferReply({ ephemeral: true });
 
-        const nombreId = interaction.options.getString('nombre').toLowerCase().trim();
-        const imagenAdjunta = interaction.options.getAttachment('imagen');
-        const urlImagen = imagenAdjunta ? imagenAdjunta.url : null;
-        const precio = interaction.options.getInteger('precio') || null;
-        const nivelMinimo = interaction.options.getInteger('nivel') || null;
+        try {
+            const nombreId = interaction.options.getString('nombre').toLowerCase().trim();
+            const imagenAdjunta = interaction.options.getAttachment('imagen');
+            const urlImagen = imagenAdjunta ? imagenAdjunta.url : null;
+            const precio = interaction.options.getInteger('precio') || null;
+            const nivelMinimo = interaction.options.getInteger('nivel') || null;
 
-        if (!urlImagen) {
-            return await interaction.reply({ content: '❌ Tenés que subir una imagen válida, maje.', ephemeral: true });
-        }
+            if (!urlImagen) {
+                return await interaction.editReply('❌ Tenés que subir una imagen válida, maje.');
+            }
 
-        await Tabla.findOneAndUpdate(
-            { guildId: interaction.guild.id, nombreId },
-            { urlImagen, precio, nivelMinimo },
-            { upsert: true, new: true }
-        );
+            await Tabla.findOneAndUpdate(
+                { guildId: interaction.guild.id, nombreId },
+                { urlImagen, precio, nivelMinimo },
+                { upsert: true, new: true }
+            );
 
-        return await interaction.reply({
-            content: `✅ ¡Tabla **"${nombreId}"** guardada correctamente en MongoDB con tu imagen de la galería!`,
-            ephemeral: true
+            return await interaction.editReply(`✅ ¡Tabla **"${nombreId}"** guardada correctamente en MongoDB!`);
+        } catch (err) {
+            console.error("Error en /settabla:", err);
+            return await interaction.editReply(`❌ Error en /settabla: \`${err.message}\``);
         });
     }
 }); 
