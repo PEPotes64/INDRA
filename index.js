@@ -850,7 +850,7 @@ client.on('interactionCreate', async interaction => {
             if (interaction.deferred) await interaction.editReply(`❌ Error: \`${err.message}\``);
         }
     }
-            if (commandName === 'critica') {
+                if (commandName === 'critica') {
         if (interaction.user.id !== PEPO_ID) {
             return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
         }
@@ -872,24 +872,36 @@ client.on('interactionCreate', async interaction => {
                 { nombre: 'Pinceles', val: interaction.options.getInteger('pinceles') ?? 70 }
             ];
 
-            let datosArtista = await UserXP.findOne({ userId: interaction.user.id, guildId: interaction.guild.id });
+            // 🔍 1. BUSCAMOS LOS DATOS DEL ARTISTA CORRECTO (NO DE PEPO)
+            let datosArtista = await UserXP.findOne({ userId: artista.id, guildId: interaction.guild.id });
+            console.log("🔍 [DIAGNÓSTICO] Artista encontrado:", artista.username, datosArtista);
             
             const nombreCartel = datosArtista?.cartelEquipada || datosArtista?.cartelEquipado;
             const fuenteNombre = datosArtista?.fuenteEquipada;
             const nombreTabla = datosArtista?.tablaEquipada;
 
+            console.log("🖼️ [DIAGNÓSTICO] Fondo equipado por el artista:", nombreCartel);
+
             let urlFondoUsar = null;
             if (nombreCartel && nombreCartel !== 'Ninguno') {
-                const bgObj = await Background.findOne({ guildId: interaction.guild.id, nombreId: nombreCartel });
-                if (bgObj) urlFondoUsar = bgObj.fondoUrl || bgObj.urlImagen || bgObj.imageUrl || bgObj.url;
+                const regexBg = new RegExp(`^${nombreCartel.trim()}$`, 'i');
+                const bgObj = await Background.findOne({ 
+                    guildId: interaction.guild.id, 
+                    nombreId: regexBg 
+                });
+                
+                if (bgObj) {
+                    urlFondoUsar = bgObj.fondoUrl || bgObj.urlImagen || bgObj.imageUrl || bgObj.url;
+                }
             }
+            console.log("🌐 [DIAGNÓSTICO] URL del fondo resuelta:", urlFondoUsar);
 
             let urlTablaUsar = null;
             if (nombreTabla && nombreTabla !== 'Predeterminada') {
                 const regexTabla = new RegExp(`^${nombreTabla.trim()}$`, 'i');
                 const tablaObj = await Tabla.findOne({ 
                     guildId: interaction.guild.id, 
-                    $or: [{ nombreId: regexTabla }, { nombre: regexTabla }, { titulo: regexTabla }] 
+                    nombreId: regexTabla 
                 });
                 if (tablaObj) {
                     urlTablaUsar = tablaObj.urlImagen || tablaObj.url || tablaObj.imageUrl;
@@ -916,10 +928,10 @@ client.on('interactionCreate', async interaction => {
                 files: [attachment]
             });
         } catch (error) {
-            console.error("Error en /critica:", error);
-            return await interaction.editReply('❌ Puchica maje, falló el renderizado.');
+            console.error("❌ Error crítico en /critica:", error);
+            return await interaction.editReply('❌ Puchica maje, falló el renderizado de la crítica.');
         }
-    }
+                }
 
     if (commandName === 'comprar') {
         await interaction.deferReply();
