@@ -1171,7 +1171,7 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-        // --- COMANDO /DELBG BLINDADO ---
+            // --- COMANDO /DELBG A PRUEBA DE TODO ---
     if (commandName === 'delbg') {
         if (interaction.user.id !== PEPO_ID) {
             return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
@@ -1179,7 +1179,12 @@ client.on('interactionCreate', async interaction => {
         await interaction.deferReply({ ephemeral: true });
 
         try {
-            const nombreInput = interaction.options.getString('nombre');
+            // Buscamos el valor sin importar cómo se llame el campo en el comando slash
+            const nombreInput = interaction.options.getString('nombre') || 
+                                interaction.options.getString('nombre_id') || 
+                                interaction.options.getString('fondo') || 
+                                interaction.options.getString('id');
+
             if (!nombreInput) {
                 return await interaction.editReply('❌ Tenés que escribir el nombre del fondo, maje.');
             }
@@ -1191,7 +1196,7 @@ client.on('interactionCreate', async interaction => {
             });
 
             if (!deleted) {
-                return await interaction.editReply(`❌ No se encontró ningún fondo con el nombre **"${nombreId}"**.`);
+                return await interaction.editReply(`❌ No se encontró ningún fondo con el nombre **"${nombreId}"** en Mongo.`);
             }
 
             return await interaction.editReply(`🗑️ ¡Fondo **"${nombreId}"** eliminado correctamente de Mongo!`);
@@ -1199,7 +1204,7 @@ client.on('interactionCreate', async interaction => {
             console.error("Error en /delbg:", err);
             return await interaction.editReply(`❌ Error al eliminar fondo: \`${err.message}\``);
         }
-                    }
+    }
 
     // --- 5. COMANDO /SETTABLA ---
     if (commandName === 'settabla') {
