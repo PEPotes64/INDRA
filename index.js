@@ -1224,7 +1224,6 @@ client.on('interactionCreate', async interaction => {
         } catch (err) {
             console.error("Error en /settabla:", err);
             return await interaction.editReply(`❌ Error en /settabla: \`${err.message}\``);
-        });
     }
 }); 
 
