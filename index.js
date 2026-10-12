@@ -1171,7 +1171,7 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // --- 4. COMANDO /DELBG ---
+        // --- COMANDO /DELBG BLINDADO ---
     if (commandName === 'delbg') {
         if (interaction.user.id !== PEPO_ID) {
             return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
@@ -1179,7 +1179,12 @@ client.on('interactionCreate', async interaction => {
         await interaction.deferReply({ ephemeral: true });
 
         try {
-            const nombreId = interaction.options.getString('nombre').toLowerCase().trim();
+            const nombreInput = interaction.options.getString('nombre');
+            if (!nombreInput) {
+                return await interaction.editReply('❌ Tenés que escribir el nombre del fondo, maje.');
+            }
+            const nombreId = nombreInput.toLowerCase().trim();
+
             const deleted = await Background.findOneAndDelete({ 
                 guildId: interaction.guild.id, 
                 nombreId: new RegExp(`^${nombreId}$`, 'i') 
@@ -1194,7 +1199,7 @@ client.on('interactionCreate', async interaction => {
             console.error("Error en /delbg:", err);
             return await interaction.editReply(`❌ Error al eliminar fondo: \`${err.message}\``);
         }
-    }
+                    }
 
     // --- 5. COMANDO /SETTABLA ---
     if (commandName === 'settabla') {
