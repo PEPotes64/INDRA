@@ -310,20 +310,35 @@ async function generarTarjetaCritica({
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
 
-    // --- A. FONDO DE PANTALLA ---
+        // --- A. FONDO DE PANTALLA A PRUEBA DE FALLOS ---
     let fondoCargado = false;
-    if (fondoUrl) {
-        try {
-            const resBg = await fetch(fondoUrl);
-            if (resBg.ok) {
-                const bufBg = Buffer.from(await resBg.arrayBuffer());
-                const fondoImg = await loadImage(bufBg);
-                ctx.drawImage(fondoImg, 0, 0, width, height);
-                fondoCargado = true;
-            }
-        } catch (e) {
-            console.error("❌ Error al cargar fondo:", e);
+    
+    // URL DE RESPALDO (Usa una imagen tuya por defecto o esta galaxia/arte)
+    const FONDO_DEFAULT = "https://i.imgur.com/8QzQZ3m.jpg"; 
+
+    const urlAFetch = fondoUrl || FONDO_DEFAULT;
+
+    try {
+        const resBg = await fetch(urlAFetch);
+        if (resBg.ok) {
+            const bufBg = Buffer.from(await resBg.arrayBuffer());
+            const fondoImg = await loadImage(bufBg);
+            ctx.drawImage(fondoImg, 0, 0, width, height);
+            fondoCargado = true;
+            console.log("🌅 Fondo renderizado con éxito desde URL:", urlAFetch);
         }
+    } catch (e) {
+        console.error("❌ Error al cargar fondo:", e);
+    }
+
+    if (!fondoCargado) {
+        // Si todo falla, pinta un degradado azul/morado espacial (NADA DE NEGRO LISO)
+        const grad = ctx.createLinearGradient(0, 0, width, height);
+        grad.addColorStop(0, '#1a0033');
+        grad.addColorStop(0.5, '#0d0d26');
+        grad.addColorStop(1, '#000511');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, width, height);
     }
 
     if (!fondoCargado) {
