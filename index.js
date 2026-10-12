@@ -1224,8 +1224,9 @@ client.on('interactionCreate', async interaction => {
         } catch (err) {
             console.error("Error en /settabla:", err);
             return await interaction.editReply(`❌ Error en /settabla: \`${err.message}\``);
+        }
     }
-}); 
+});
 
 // --- MANEJADOR DE SELECCIONES EN LA TIENDA Y EQUIPAMIENTO ---
 client.on('interactionCreate', async interaction => {
