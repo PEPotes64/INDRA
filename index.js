@@ -1140,7 +1140,7 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // --- 3. COMANDO /SETBG ---
+    // --- 3. COMANDO /SETBG A PRUEBA DE TODO ---
     if (commandName === 'setbg') {
         if (interaction.user.id !== PEPO_ID) {
             return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
@@ -1148,7 +1148,16 @@ client.on('interactionCreate', async interaction => {
         await interaction.deferReply({ ephemeral: true });
 
         try {
-            const nombreId = interaction.options.getString('nombre').toLowerCase().trim();
+            const nombreInput = interaction.options.getString('nombre') || 
+                                interaction.options.getString('nombre_id') || 
+                                interaction.options.getString('fondo') || 
+                                interaction.options.getString('id');
+
+            if (!nombreInput) {
+                return await interaction.editReply('❌ Tenés que escribir el nombre del fondo, maje.');
+            }
+            const nombreId = nombreInput.toLowerCase().trim();
+
             const imagenAdjunta = interaction.options.getAttachment('imagen');
             const urlImagen = imagenAdjunta ? imagenAdjunta.url : null;
             const precio = interaction.options.getInteger('precio') || null;
@@ -1169,7 +1178,7 @@ client.on('interactionCreate', async interaction => {
             console.error("Error en /setbg:", err);
             return await interaction.editReply(`❌ Error al guardar el fondo: \`${err.message}\``);
         }
-    }
+                 }
 
             // --- COMANDO /DELBG A PRUEBA DE TODO ---
     if (commandName === 'delbg') {
@@ -1206,7 +1215,7 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
-    // --- 5. COMANDO /SETTABLA ---
+    // --- 5. COMANDO /SETTABLA A PRUEBA DE TODO ---
     if (commandName === 'settabla') {
         if (interaction.user.id !== PEPO_ID) {
             return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
@@ -1214,7 +1223,16 @@ client.on('interactionCreate', async interaction => {
         await interaction.deferReply({ ephemeral: true });
 
         try {
-            const nombreId = interaction.options.getString('nombre').toLowerCase().trim();
+            const nombreInput = interaction.options.getString('nombre') || 
+                                interaction.options.getString('nombre_id') || 
+                                interaction.options.getString('tabla') || 
+                                interaction.options.getString('id');
+
+            if (!nombreInput) {
+                return await interaction.editReply('❌ Tenés que escribir el nombre de la tabla, maje.');
+            }
+            const nombreId = nombreInput.toLowerCase().trim();
+
             const imagenAdjunta = interaction.options.getAttachment('imagen');
             const urlImagen = imagenAdjunta ? imagenAdjunta.url : null;
             const precio = interaction.options.getInteger('precio') || null;
