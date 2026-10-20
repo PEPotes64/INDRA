@@ -233,19 +233,22 @@ client.once('ready', async () => {
         console.error("Error al sincronizar fuentes al inicio:", err);
     }
 
-    try {
-        const guildTarget = client.guilds.cache.get('1336314516333658164');
-        if (guildTarget) {
-            await guildTarget.commands.set([
-                dataAddXp, dataQuitarXp, dataVerXp, dataTop, dataComprar, 
-                dataPerfil, dataCritica, dataSetBg, dataDelBg, dataSetFont, 
-                dataSetPack, dataTabla
-            ]);
-            console.log('¡Comandos instantáneos listos en el server compa > :v!');
+        try {
+        const comandosTotales = [
+            dataAddXp, dataQuitarXp, dataVerXp, dataTop, dataComprar, 
+            dataPerfil, dataCritica, dataSetBg, dataDelBg, dataSetFont, 
+            dataSetPack, dataTabla
+        ];
+
+        for (const [guildId, guild] of client.guilds.cache) {
+            await guild.commands.set(comandosTotales);
+            console.log(`✅ Comandos cargados en el servidor: ${guild.name} (${guildId})`);
         }
+        console.log('¡Todos los comandos instantáneos listos al 100 alv > :v!');
     } catch (error) {
-        console.error('Error cargando comandos en el server:', error);
-    }
+        console.error('❌ Error cargando comandos en los servidores:', error);
+        }
+    
 });
 
 // --- HELPERS ---
