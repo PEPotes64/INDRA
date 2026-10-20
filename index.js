@@ -1485,7 +1485,8 @@ client.on('interactionCreate', async interaction => {
 }
 });
 
-client.login(process.env.DISCORD_TOKEN).catch(err => {
-    console.error('❌ ERROR AL LOGUEARSE ALV:', err);
-});
+console.log('🔄 Intentando conectar el bot a Discord...');
+client.login(process.env.DISCORD_TOKEN)
+    .then(() => console.log('✅ ¡Login exitoso en Discord!'))
+    .catch(err => console.error('❌ ERROR CRÍTICO EN LOGIN ALV:', err));
 
