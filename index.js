@@ -22,7 +22,7 @@ const {
 const mongoose = require('mongoose');
 require('dotenv').config();
 
-const UserXP = require('./UserXP.js');[span_2](start_span)[span_2](end_span)
+const UserXP = require('./UserXP.js');
 
 const client = new Client({
     intents: [
@@ -72,9 +72,9 @@ const nivelesRoles = [
     { min: 0, max: 0, id: '1359363942727815260' }
 ];
 
-mongoose.connect(process.env.MONGO_URI || process.env.MONGODB_URI)[span_3](start_span)[span_3](end_span)
-    .then(() => console.log('Base de datos conectada al 100 > :v'))[span_4](start_span)[span_4](end_span)
-    .catch(err => console.error('Puchica fallo la base de datos:', err));[span_5](start_span)[span_5](end_span)
+mongoose.connect(process.env.MONGO_URI || process.env.MONGODB_URI)
+    .then(() => console.log('Base de datos conectada al 100 > :v'))
+    .catch(err => console.error('Puchica fallo la base de datos:', err));
 
 // --- DEFINICIÓN DE COMANDOS SLASH ---
 const dataAddXp = {
@@ -182,20 +182,19 @@ async function checkearRoles(member, nivelActual, guild) {
     }
 }
 
-// --- SISTEMA DE XP BALANCEADO ( MÁS RÁPIDO ) ---
+// --- SISTEMA DE XP BALANCEADO ---
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.guild) return;
 
     const userId = message.author.id;
     const guildId = message.guild.id;
 
-    // AHORA DA ENTRE 15 Y 25 XP POR MENSAJE NORMAL
     let xpGanada = Math.floor(Math.random() * 11) + 15;
 
     if (message.attachments.size > 0) {
         const attachment = message.attachments.first();
         const tipo = attachment.contentType || '';
-        if (tipo.startsWith('image/')) xpGanada += 25; // Fotos dan más amor
+        if (tipo.startsWith('image/')) xpGanada += 25;
         else if (tipo.startsWith('video/')) xpGanada += 35;
         else if (tipo.startsWith('audio/')) xpGanada += 20;
     } else if (message.content.includes('giphy.com') || message.content.includes('tenor.com')) {
@@ -213,44 +212,44 @@ client.on('messageCreate', async message => {
     }
 
     try {
-        let userXpData = await UserXP.findOne({ userId, guildId });[span_6](start_span)[span_6](end_span)
+        let userXpData = await UserXP.findOne({ userId, guildId });
         if (!userXpData) {
-            userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });[span_7](start_span)[span_7](end_span)
+            userXpData = new UserXP({ userId, guildId, xp: 0, level: 1 });
         }
 
         userXpData.xp += xpGanada;
-        let xpNecesaria = (userXpData.level + 1) * 100;[span_8](start_span)[span_8](end_span)
+        let xpNecesaria = (userXpData.level + 1) * 100;
         let subioNivel = false;
 
         while (userXpData.xp >= xpNecesaria) {
             userXpData.xp -= xpNecesaria;
             userXpData.level += 1;
-            xpNecesaria = (userXpData.level + 1) * 100;[span_9](start_span)[span_9](end_span)
+            xpNecesaria = (userXpData.level + 1) * 100;
             subioNivel = true;
         }
 
-        await userXpData.save();[span_10](start_span)[span_10](end_span)
+        await userXpData.save();
 
         if (subioNivel) {
             const levelEmbed = new EmbedBuilder()
                 .setColor('#00ffaa')
                 .setAuthor({ name: '¡Subida de Nivel!', iconURL: message.author.displayAvatarURL() })
                 .setThumbnail(message.author.displayAvatarURL({ dynamic: true, size: 512 }))
-                .setDescription(`<@${userId}> Has sido ayudado por Zeus, subiste de nivel 🔥`)[span_11](start_span)[span_11](end_span)
+                .setDescription(`<@${userId}> Has sido ayudado por Zeus, subiste de nivel 🔥`)
                 .addFields(
-                    { name: '⭐ Tu Nuevo nivel es:', value: `**${userXpData.level}**`, inline: true },[span_12](start_span)[span_12](end_span)
-                    { name: '✨ Esta es tu XP:', value: `**${userXpData.xp} /${(userXpData.level + 1) * 100}**`, inline: true }[span_13](start_span)[span_13](end_span)
+                    { name: '⭐ Tu Nuevo nivel es:', value: `**${userXpData.level}**`, inline: true },
+                    { name: '✨ Esta es tu XP:', value: `**${userXpData.xp} /${(userXpData.level + 1) * 100}**`, inline: true }
                 )
-                .setFooter({ text: 'Sistema de XP • Zeus', iconURL: client.user.displayAvatarURL() });[span_14](start_span)[span_14](end_span)
+                .setFooter({ text: 'Sistema de XP • Zeus', iconURL: client.user.displayAvatarURL() });
 
-            await message.channel.send({ embeds: [levelEmbed] });[span_15](start_span)[span_15](end_span)
+            await message.channel.send({ embeds: [levelEmbed] });
         }
 
         if (message.member) {
-            await checkearRoles(message.member, userXpData.level, message.guild);[span_16](start_span)[span_16](end_span)
+            await checkearRoles(message.member, userXpData.level, message.guild);
         }
     } catch (error) {
-        console.error("Clavo con la XP:", error);[span_17](start_span)[span_17](end_span)
+        console.error("Clavo con la XP:", error);
     }
 });
 
@@ -263,131 +262,131 @@ client.on('interactionCreate', async interaction => {
     if (commandName === 'xp') {
         try {
             await interaction.deferReply();
-            const target = interaction.options.getUser('usuario') || interaction.user;[span_18](start_span)[span_18](end_span)
-            let userXp = await UserXP.findOne({ userId: target.id, guildId: interaction.guild.id });[span_19](start_span)[span_19](end_span)
+            const target = interaction.options.getUser('usuario') || interaction.user;
+            let userXp = await UserXP.findOne({ userId: target.id, guildId: interaction.guild.id });
 
-            const xp = userXp ? userXp.xp : 0;[span_20](start_span)[span_20](end_span)
-            const level = userXp ? userXp.level : 1;[span_21](start_span)[span_21](end_span)
-            const xpSiguiente = (level + 1) * 100;[span_22](start_span)[span_22](end_span)
+            const xp = userXp ? userXp.xp : 0;
+            const level = userXp ? userXp.level : 1;
+            const xpSiguiente = (level + 1) * 100;
 
             const embedXp = new EmbedBuilder()
                 .setColor('#FFD700')
                 .setTitle(`⭐ Nivel y XP de ${target.username}`)
-                .setDescription('Consulta el progreso actual en el servidor.')[span_23](start_span)[span_23](end_span)
+                .setDescription('Consulta el progreso actual en el servidor.')
                 .addFields(
-                    { name: '⭐ Nivel Actual:', value: `**${level}**`, inline: true },[span_24](start_span)[span_24](end_span)
-                    { name: '✨ XP Acumulada:', value: `**${xp} /${xpSiguiente}**`, inline: true }[span_25](start_span)[span_25](end_span)
+                    { name: '⭐ Nivel Actual:', value: `**${level}**`, inline: true },
+                    { name: '✨ XP Acumulada:', value: `**${xp} /${xpSiguiente}**`, inline: true }
                 )
-                .setThumbnail(target.displayAvatarURL({ dynamic: true }))[span_26](start_span)[span_26](end_span)
-                .setFooter({ text: 'Zeus XP System', iconURL: client.user.displayAvatarURL() });[span_27](start_span)[span_27](end_span)
+                .setThumbnail(target.displayAvatarURL({ dynamic: true }))
+                .setFooter({ text: 'Zeus XP System', iconURL: client.user.displayAvatarURL() });
 
-            return await interaction.editReply({ embeds: [embedXp] });[span_28](start_span)[span_28](end_span)
+            return await interaction.editReply({ embeds: [embedXp] });
         } catch (err) {
-            console.error("Error en /xp:", err);[span_29](start_span)[span_29](end_span)
-            if (interaction.deferred) return await interaction.editReply(`❌ Error al cargar XP: \`${err.message}\``);[span_30](start_span)[span_30](end_span)
+            console.error("Error en /xp:", err);
+            if (interaction.deferred) return await interaction.editReply(`❌ Error al cargar XP: \`${err.message}\``);
         }
     }
 
     if (commandName === 'top') {
         try {
             await interaction.deferReply();
-            const topUsers = await UserXP.find({ guildId: interaction.guild.id }).sort({ level: -1, xp: -1 }).limit(10);[span_31](start_span)[span_31](end_span)
+            const topUsers = await UserXP.find({ guildId: interaction.guild.id }).sort({ level: -1, xp: -1 }).limit(10);
 
             if (!topUsers || topUsers.length === 0) {
-                return await interaction.editReply('❌ No hay registros de XP todavía en este servidor.');[span_32](start_span)[span_32](end_span)
+                return await interaction.editReply('❌ No hay registros de XP todavía en este servidor.');
             }
 
             let desc = topUsers.map((u, i) => {
-                const medalla = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `**#${i + 1}**`;[span_33](start_span)[span_33](end_span)
-                return `${medalla} <@${u.userId}> — **Nivel ${u.level}** (${u.xp} XP)`;[span_34](start_span)[span_34](end_span)
-            }).join('\n');[span_35](start_span)[span_35](end_span)
+                const medalla = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `**#${i + 1}**`;
+                return `${medalla} <@${u.userId}> — **Nivel ${u.level}** (${u.xp} XP)`;
+            }).join('\n');
 
             const embedTop = new EmbedBuilder()
                 .setColor('#FFD700')
-                .setTitle('🏆 TOP 10 MAJES CON MÁS XP Y NIVELES')[span_36](start_span)[span_36](end_span)
-                .setDescription(desc)[span_37](start_span)[span_37](end_span)
-                .setThumbnail(interaction.guild.iconURL({ dynamic: true }))[span_38](start_span)[span_38](end_span)
-                .setFooter({ text: 'Ranking Oficial • Zeus', iconURL: client.user.displayAvatarURL() });[span_39](start_span)[span_39](end_span)
+                .setTitle('🏆 TOP 10 MAJES CON MÁS XP Y NIVELES')
+                .setDescription(desc)
+                .setThumbnail(interaction.guild.iconURL({ dynamic: true }))
+                .setFooter({ text: 'Ranking Oficial • Zeus', iconURL: client.user.displayAvatarURL() });
 
-            return await interaction.editReply({ embeds: [embedTop] });[span_40](start_span)[span_40](end_span)
+            return await interaction.editReply({ embeds: [embedTop] });
         } catch (err) {
-            console.error("Error en /top:", err);[span_41](start_span)[span_41](end_span)
-            if (interaction.deferred) return await interaction.editReply(`❌ Error al cargar el top: \`${err.message}\``);[span_42](start_span)[span_42](end_span)
+            console.error("Error en /top:", err);
+            if (interaction.deferred) return await interaction.editReply(`❌ Error al cargar el top: \`${err.message}\``);
         }
     }
 
     if (commandName === 'añadir-xp') {
         try {
             if (interaction.user.id !== PEPO_ID) {
-                return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });[span_43](start_span)[span_43](end_span)
+                return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
             }
             await interaction.deferReply();
 
-            const target = interaction.options.getUser('usuario');[span_44](start_span)[span_44](end_span)
-            const cant = interaction.options.getInteger('cant');[span_45](start_span)[span_45](end_span)
+            const target = interaction.options.getUser('usuario');
+            const cant = interaction.options.getInteger('cant');
 
-            let userXp = await UserXP.findOne({ userId: target.id, guildId: interaction.guild.id });[span_46](start_span)[span_46](end_span)
-            if (!userXp) userXp = new UserXP({ userId: target.id, guildId: interaction.guild.id, xp: 0, level: 1 });[span_47](start_span)[span_47](end_span)
+            let userXp = await UserXP.findOne({ userId: target.id, guildId: interaction.guild.id });
+            if (!userXp) userXp = new UserXP({ userId: target.id, guildId: interaction.guild.id, xp: 0, level: 1 });
 
-            userXp.xp += cant;[span_48](start_span)[span_48](end_span)
-            let xpNecesaria = (userXp.level + 1) * 100;[span_49](start_span)[span_49](end_span)
+            userXp.xp += cant;
+            let xpNecesaria = (userXp.level + 1) * 100;
             while (userXp.xp >= xpNecesaria) {
-                userXp.xp -= xpNecesaria;[span_50](start_span)[span_50](end_span)
-                userXp.level += 1;[span_51](start_span)[span_51](end_span)
-                xpNecesaria = (userXp.level + 1) * 100;[span_52](start_span)[span_52](end_span)
+                userXp.xp -= xpNecesaria;
+                userXp.level += 1;
+                xpNecesaria = (userXp.level + 1) * 100;
             }
 
-            await userXp.save();[span_53](start_span)[span_53](end_span)
+            await userXp.save();
 
             const embedAdd = new EmbedBuilder()
                 .setColor('#FFD700')
-                .setTitle('👑 XP Puesta por Admin')[span_54](start_span)[span_54](end_span)
-                .setDescription(`<@${target.id}> Has sido ayudado por Zeus, se te sumaron **+${cant} XP**`)[span_55](start_span)[span_55](end_span)
+                .setTitle('👑 XP Puesta por Admin')
+                .setDescription(`<@${target.id}> Has sido ayudado por Zeus, se te sumaron **+${cant} XP**`)
                 .addFields(
-                    { name: '⭐ Tu Nuevo nivel es:', value: `**${userXp.level}**`, inline: false },[span_56](start_span)[span_56](end_span)
-                    { name: '✨ Esta es tu XP:', value: `**${userXp.xp} /${(userXp.level + 1) * 100}**`, inline: false }[span_57](start_span)[span_57](end_span)
+                    { name: '⭐ Tu Nuevo nivel es:', value: `**${userXp.level}**`, inline: false },
+                    { name: '✨ Esta es tu XP:', value: `**${userXp.xp} /${(userXp.level + 1) * 100}**`, inline: false }
                 )
-                .setThumbnail(target.displayAvatarURL({ dynamic: true }))[span_58](start_span)[span_58](end_span)
-                .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });[span_59](start_span)[span_59](end_span)
+                .setThumbnail(target.displayAvatarURL({ dynamic: true }))
+                .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
 
-            return await interaction.editReply({ embeds: [embedAdd] });[span_60](start_span)[span_60](end_span)
+            return await interaction.editReply({ embeds: [embedAdd] });
         } catch (err) {
-            console.error("Error en añadir-xp:", err);[span_61](start_span)[span_61](end_span)
-            if (interaction.deferred) return await interaction.editReply(`❌ Error: \`${err.message}\``);[span_62](start_span)[span_62](end_span)
+            console.error("Error en añadir-xp:", err);
+            if (interaction.deferred) return await interaction.editReply(`❌ Error: \`${err.message}\``);
         }
     }
 
     if (commandName === 'quitar-xp') {
         try {
             if (interaction.user.id !== PEPO_ID) {
-                return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });[span_63](start_span)[span_63](end_span)
+                return await interaction.reply({ content: '❌ Solo Pepo.', ephemeral: true });
             }
             await interaction.deferReply();
 
-            const target = interaction.options.getUser('usuario');[span_64](start_span)[span_64](end_span)
-            const cant = interaction.options.getInteger('cant');[span_65](start_span)[span_65](end_span)
+            const target = interaction.options.getUser('usuario');
+            const cant = interaction.options.getInteger('cant');
 
-            let userXp = await UserXP.findOne({ userId: target.id, guildId: interaction.guild.id });[span_66](start_span)[span_66](end_span)
-            if (!userXp) return await interaction.editReply('❌ El usuario no tiene registros.');[span_67](start_span)[span_67](end_span)
+            let userXp = await UserXP.findOne({ userId: target.id, guildId: interaction.guild.id });
+            if (!userXp) return await interaction.editReply('❌ El usuario no tiene registros.');
 
-            userXp.xp = Math.max(0, userXp.xp - cant);[span_68](start_span)[span_68](end_span)
-            await userXp.save();[span_69](start_span)[span_69](end_span)
+            userXp.xp = Math.max(0, userXp.xp - cant);
+            await userXp.save();
 
             const embedQuitar = new EmbedBuilder()
                 .setColor('#FF3333')
-                .setTitle('⚠️ XP Restada por Admin')[span_70](start_span)[span_70](end_span)
-                .setDescription(`A <@${target.id}> se le castigó y se le quitaron **-${cant} XP**`)[span_71](start_span)[span_71](end_span)
+                .setTitle('⚠️ XP Restada por Admin')
+                .setDescription(`A <@${target.id}> se le castigó y se le quitaron **-${cant} XP**`)
                 .addFields(
-                    { name: '⭐ Nivel Actual:', value: `**${userXp.level}**`, inline: false },[span_72](start_span)[span_72](end_span)
-                    { name: '✨ XP Restante:', value: `**${userXp.xp} /${(userXp.level + 1) * 100}**`, inline: false }[span_73](start_span)[span_73](end_span)
+                    { name: '⭐ Nivel Actual:', value: `**${userXp.level}**`, inline: false },
+                    { name: '✨ XP Restante:', value: `**${userXp.xp} /${(userXp.level + 1) * 100}**`, inline: false }
                 )
-                .setThumbnail(target.displayAvatarURL({ dynamic: true }))[span_74](start_span)[span_74](end_span)
-                .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });[span_75](start_span)[span_75](end_span)
+                .setThumbnail(target.displayAvatarURL({ dynamic: true }))
+                .setFooter({ text: 'Panel de Administración • Zeus', iconURL: client.user.displayAvatarURL() });
 
-            return await interaction.editReply({ embeds: [embedQuitar] });[span_76](start_span)[span_76](end_span)
+            return await interaction.editReply({ embeds: [embedQuitar] });
         } catch (err) {
-            console.error("Error en quitar-xp:", err);[span_77](start_span)[span_77](end_span)
-            if (interaction.deferred) return await interaction.editReply(`❌ Error: \`${err.message}\``);[span_78](start_span)[span_78](end_span)
+            console.error("Error en quitar-xp:", err);
+            if (interaction.deferred) return await interaction.editReply(`❌ Error: \`${err.message}\``);
         }
     }
 
@@ -396,8 +395,8 @@ client.on('interactionCreate', async interaction => {
 
         const tiendaEmbed = new EmbedBuilder()
             .setColor('#00ffaa')
-            .setTitle('⚡ Tienda de Bendiciones de Zeus')[span_79](start_span)[span_79](end_span)
-            .setDescription('Gasta tu XP acumulada para obtener bendiciones temporales.')[span_80](start_span)[span_80](end_span)
+            .setTitle('⚡ Tienda de Bendiciones de Zeus')
+            .setDescription('Gasta tu XP acumulada para obtener bendiciones temporales.')
             .addFields(
                 { name: '⚡ Rol XP X2 (3,000 XP)', value: 'Duplica tu XP ganada por 1 día.' },
                 { name: '👁️ Canales Ocultos (5,000 XP)', value: 'Acceso a canales ocultos por 1 día.' },
