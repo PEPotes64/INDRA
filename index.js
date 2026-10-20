@@ -1,3 +1,10 @@
+process.on('unhandledRejection', error => {
+    console.error('❌ ERROR NO CONTROLADO ALV:', error);
+});
+process.on('uncaughtException', error => {
+    console.error('❌ EXCEPCIÓN CRÍTICA:', error);
+});
+
 const http = require('http');
 http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
