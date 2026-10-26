@@ -5,6 +5,10 @@ const userXpSchema = new mongoose.Schema({
     guildId: { type: String, required: true },
     xp: { type: Number, default: 0 },
     level: { type: Number, default: 1 },
+    
+    // --- NUEVOS CAMPOS PARA LAS RACHAS ---
+    streak: { type: Number, default: 0 },
+    lastActiveDate: { type: Date, default: null },
 
     rolX2Hasta: { type: Date, default: null },
     rolOcultoHasta: { type: Date, default: null },
@@ -18,8 +22,8 @@ const userXpSchema = new mongoose.Schema({
     fuentesCompradas: { type: [String], default: ['sans-serif'] },
     fuenteEquipada: { type: String, default: 'sans-serif' },
     packsComprados: { type: [String], default: [] },
-    
-    // ahora si activos para las tablas
+
+    // y ahora es activos para las tablas
     tablaEquipada: { type: String, default: null },
     tablasCompradas: { type: [String], default: [] }
 });
