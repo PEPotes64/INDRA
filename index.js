@@ -72,7 +72,7 @@ const nivelesRoles = [
     { min: 1000, max: 99999, nombre: 'Bing-Bang' }
 ];
 
-// --- LISTA DE ROLES DE RACHAS (SEGÚN TU IMAGEN) ---
+// --- LISTA DE ROLES DE RACHAS ---
 const rachasRoles = [
     { dias: 1, nombre: 'Chispa', emoji: '✨' },
     { dias: 5, nombre: 'Llama', emoji: '🔥' },
@@ -196,7 +196,7 @@ async function procesarRachaYApodo(message, userXpData) {
     try {
         const member = message.member;
         const ahora = new Date();
-        const hoyStr = ahora.toISOString().split('T')[0]; // Fecha YYYY-MM-DD
+        const hoyStr = ahora.toISOString().split('T')[0];
 
         let ultimaStr = userXpData.lastActiveDate ? new Date(userXpData.lastActiveDate).toISOString().split('T')[0] : null;
 
@@ -208,33 +208,28 @@ async function procesarRachaYApodo(message, userXpData) {
                 const diffDias = Math.floor((ahora - ultimaFecha) / (1000 * 60 * 60 * 24));
 
                 if (diffDias === 1) {
-                    userXpData.streak += 1; // Mantiene y sube racha
+                    userXpData.streak += 1;
                 } else if (diffDias > 1) {
-                    userXpData.streak = 1; // Perdió la racha, reinicia a 1
+                    userXpData.streak = 1;
                 }
             }
             userXpData.lastActiveDate = ahora;
             await userXpData.save();
 
-            // Buscar el emoji correspondiente a los días de racha actuales
             let emojiRacha = '✨';
             const rachaActual = userXpData.streak;
 
-            // Encontrar el emoji exacto o menor aplicable según la lista de rachas
-            const configRacha = rachasRoles.slice().reverse().find(r => racaActual >= r.dias || rachaActual >= r.dias);
+            const configRacha = rachasRoles.slice().reverse().find(r => rachaActual >= r.dias);
             if (configRacha) emojiRacha = configRacha.emoji;
 
-            // Manejo del apodo (nickname) limpio sin acumular barras viejas
             let nombreLimpio = member.nickname || member.user.username;
-            // Limpia formato previo tipo "| 5 🔥" si ya lo tenía
             nombreLimpio = nombreLimpio.replace(/\s*\|\s*\d+\s*[\u{1F300}-\u{1F5FF}\u{1F900}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
             
             const nuevoApodo = `${nombreLimpio} | ${rachaActual} ${emojiRacha}`;
             if (nuevoApodo.length <= 32) {
-                await member.setNickname(nuevoApodo).catch(e => console.log("No se pudo cambiar el apodo (permisos o dueño):", e.message));
+                await member.setNickname(nuevoApodo).catch(e => console.log("No se pudo cambiar el apodo:", e.message));
             }
 
-            // Asignar rol de racha correspondiente y limpiar los anteriores de racha
             const rachaRolMatch = rachasRoles.slice().reverse().find(r => rachaActual >= r.dias);
             if (rachaRolMatch) {
                 const nombresRachas = rachasRoles.map(r => r.nombre.toLowerCase());
@@ -284,7 +279,6 @@ client.on('messageCreate', async message => {
             userXpData = new UserXP({ userId, guildId, xp: 0, level: 1, streak: 0 });
         }
 
-        // Actualizar racha diaria y apodo
         await procesarRachaYApodo(message, userXpData);
 
         userXpData.xp += xpGanada;
@@ -308,7 +302,7 @@ client.on('messageCreate', async message => {
                 .setDescription(`<@${userId}> Has sido ayudado por Zeus, subiste de nivel 🔥`)
                 .addFields(
                     { name: '⭐ Tu Nuevo nivel es:', value: `**${userXpData.level}**`, inline: true },
-                    { name: '✨ Esta es tu XP:', value: `**${userXpData.xp} / ${userXpData.level * 1000}**`, inline: true }
+                    { name: '✨ Esta estu XP:', value: `**${userXpData.xp} / ${userXpData.level * 1000}**`, inline: true }
                 )
                 .setFooter({ text: 'Sistema de XP • Zeus', iconURL: client.user.displayAvatarURL() });
 
@@ -415,7 +409,7 @@ client.on('interactionCreate', async interaction => {
         return await interaction.editReply(`⚠️ Se restaron **-${cant} XP** a <@${target.id}>.`);
     }
 
-    if (commandName === 'comprar') {
+            if (commandName === 'comprar') {
         await interaction.deferReply({ ephemeral: true });
         const tiendaEmbed = new EmbedBuilder()
             .setColor('#00ffaa')
@@ -471,34 +465,33 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (opcion === 'comprar_ocultos') {
-                            const cooldownMsg = verificarCooldown(userXpData.ultimoUsoOculto);
-                if (cooldownMsg) return await interaction.editReply(`⌛ Esperá **${cooldownMsg}**.`);
-                if (xpTotalActual < 5000) return await interaction.editReply(`❌ No te alcanza (cuesta 5,000 XP).`);
+            const cooldownMsg = verificarCooldown(userXpData.ultimoUsoOculto);
+            if (cooldownMsg) return await interaction.editReply(`⌛ Esperá **${cooldownMsg}**.`);
+            if (xpTotalActual < 5000) return await interaction.editReply(`❌ No te alcanza (cuesta 5,000 XP).`);
 
-                recalcularProgreso(userXpData, xpTotalActual - 5000);
-                userXpData.rolOcultoHasta = new Date(ahora + (24 * 60 * 60 * 1000));
-                userXpData.ultimoUsoOculto = new Date(ahora);
-                await userXpData.save();
+            recalcularProgreso(userXpData, xpTotalActual - 5000);
+            userXpData.rolOcultoHasta = new Date(ahora + (24 * 60 * 60 * 1000));
+            userXpData.ultimoUsoOculto = new Date(ahora);
+            await userXpData.save();
 
-                const member = await interaction.guild.members.fetch(userId);
-                if (member) await member.roles.add(ROL_OCULTO);
-                return await interaction.editReply(`👁️ ¡Compra exitosa de Canales Ocultos!`);
-            }
+            const member = await interaction.guild.members.fetch(userId);
+            if (member) await member.roles.add(ROL_OCULTO);
+            return await interaction.editReply(`👁️ ¡Compra exitosa de Canales Ocultos!`);
+        }
 
-            if (opcion === 'comprar_caja') {
-                const cooldownMsg = verificarCooldown(userXpData.ultimoUsoCaja);
-                if (cooldownMsg) return await interaction.editReply(`⌛ Esperá **${cooldownMsg}**.`);
-                if (xpTotalActual < 2000) return await interaction.editReply(`❌ No te alcanza (cuesta 2,000 XP).`);
+        if (opcion === 'comprar_caja') {
+            const cooldownMsg = verificarCooldown(userXpData.ultimoUsoCaja);
+            if (cooldownMsg) return await interaction.editReply(`⌛ Esperá **${cooldownMsg}**.`);
+            if (xpTotalActual < 2000) return await interaction.editReply(`❌ No te alcanza (cuesta 2,000 XP).`);
 
-                let nuevoTotal = xpTotalActual - 2000;
-                const xpGanadaAzar = Math.floor(Math.random() * (5000 - 500 + 1)) + 500;
-                nuevoTotal += xpGanadaAzar;
+            let nuevoTotal = xpTotalActual - 2000;
+            const xpGanadaAzar = Math.floor(Math.random() * (5000 - 500 + 1)) + 500;
+            nuevoTotal += xpGanadaAzar;
 
-                recalcularProgreso(userXpData, nuevoTotal);
-                userXpData.ultimoUsoCaja = new Date(ahora);
-                await userXpData.save();
-                return await interaction.editReply(`🎁 ¡Abriste la Caja de Zeus y ganaste **+${xpGanadaAzar} XP** al azar!`);
-            }
+            recalcularProgreso(userXpData, nuevoTotal);
+            userXpData.ultimoUsoCaja = new Date(ahora);
+            await userXpData.save();
+            return await interaction.editReply(`🎁 ¡Abriste la Caja de Zeus y ganaste **+${xpGanadaAzar} XP** al azar!`);
         }
     }
 });
