@@ -85,7 +85,7 @@ const rachasRoles = [
 
 mongoose.connect(process.env.MONGO_URI || process.env.MONGODB_URI)
     .then(() => console.log('Base de datos conectada al 100 > :v'))
-    .catch(err => console.error('Puchica fallo la base de datos:', err))
+    .catch(err => console.error('Puchica fallo la base de datos:', err));
 
 // --- COMANDOS ---
 const dataAddXp = {
@@ -294,12 +294,12 @@ client.on('messageCreate', async message => {
 
         await userXpData.save();
 
-            if (subioNivel) {
+        if (subioNivel) {
             const levelEmbed = new EmbedBuilder()
                 .setColor('#00ffaa')
                 .setAuthor({ name: '¡Subida de Nivel!', iconURL: message.author.displayAvatarURL() })
                 .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
-                .setDescription(`<@${userId}> Has sido ayudado por Zeus, ...`)
+                .setDescription(`<@${userId}> Has subido al nivel **${userXpData.level}**! 🎉`)
                 .addFields(
                     { name: '⭐ Tu Nuevo nivel es:', value: `**${userXpData.level}**` },
                     { name: '✨ Esta estu XP:', value: `**${userXpData.xp}**` }
@@ -314,8 +314,12 @@ client.on('messageCreate', async message => {
         }
 
         if (message.member) {
-            await checkearRolesPorNombre(message.member, userXpData.level);
+            await checkearRolesPorNombre(message.member, userXpData.level, message.guild);
         }
+    } catch (error) {
+        console.error("Clavo con la XP en mensaje:", error);
+    }
+});
 
 // --- COMANDOS SLASH ---
 client.on('interactionCreate', async interaction => {
@@ -409,7 +413,7 @@ client.on('interactionCreate', async interaction => {
         return await interaction.editReply(`⚠️ Se restaron **-${cant} XP** a <@${target.id}>.`);
     }
 
-            if (commandName === 'comprar') {
+    if (commandName === 'comprar') {
         await interaction.deferReply({ ephemeral: true });
         const tiendaEmbed = new EmbedBuilder()
             .setColor('#00ffaa')
@@ -472,7 +476,7 @@ client.on('interactionCreate', async interaction => {
             recalcularProgreso(userXpData, xpTotalActual - 5000);
             userXpData.rolOcultoHasta = new Date(ahora + (24 * 60 * 60 * 1000));
             userXpData.ultimoUsoOculto = new Date(ahora);
-            await userXpData.save();
+                     await userXpData.save();
 
             const member = await interaction.guild.members.fetch(userId);
             if (member) await member.roles.add(ROL_OCULTO);
@@ -498,3 +502,4 @@ client.on('interactionCreate', async interaction => {
 
 console.log('🔄 Conectando bot...');
 client.login(process.env.DISCORD_TOKEN);
+            
