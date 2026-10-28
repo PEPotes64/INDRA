@@ -84,8 +84,23 @@ const rachasRoles = [
 ];
 
 mongoose.connect(process.env.MONGO_URI || process.env.MONGODB_URI)
-    .then(() => console.log('Base de datos conectada al 100 > :v'))
-    .catch(err => console.error('Puchica fallo la base de datos:', err));
+    .then(async () => {
+        console.log('Base de datos conectada al 100 > :v');
+        
+        // --- PARCHE TEMPORAL RACHAS JUAN Y RED ---
+        await UserXP.findOneAndUpdate(
+            { userId: "1290984875198316375" },
+            { $set: { streak: 62, lastActiveDate: new Date("2026-10-28") } },
+            { upsert: true }
+        );
+        await UserXP.findOneAndUpdate(
+            { userId: "1259886426978713629" },
+            { $set: { streak: 58, lastActiveDate: new Date("2026-10-28") } },
+            { upsert: true }
+        );
+        console.log('¡Rachas de Juan y Red actualizadas alv!');
+    })
+    .catch(err => console.error('Puchica fallo la base de datos:', err))
 
 // --- COMANDOS ---
 const dataAddXp = {
