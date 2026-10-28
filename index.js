@@ -320,7 +320,6 @@ if (canalNiveles) {
     } catch (error) {
         console.error("Clavo con la XP:", error);
     }
-});
 
 // --- COMANDOS SLASH ---
 client.on('interactionCreate', async interaction => {
