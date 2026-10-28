@@ -294,6 +294,7 @@ client.on('messageCreate', async message => {
 
         await userXpData.save();
 
+    try {
         if (subioNivel) {
             const levelEmbed = new EmbedBuilder()
                 .setColor('#00ffaa')
