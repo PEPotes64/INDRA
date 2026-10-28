@@ -294,33 +294,28 @@ client.on('messageCreate', async message => {
 
         await userXpData.save();
 
-    try {
-        if (subioNivel) {
+            if (subioNivel) {
             const levelEmbed = new EmbedBuilder()
                 .setColor('#00ffaa')
                 .setAuthor({ name: '¡Subida de Nivel!', iconURL: message.author.displayAvatarURL() })
-                .setThumbnail(message.author.displayAvatarURL({ dynamic: true, size: 512 }))
-                .setDescription(`<@${userId}> Has sido ayudado por Zeus, subiste de nivel 🔥`)
+                .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
+                .setDescription(`<@${userId}> Has sido ayudado por Zeus, ...`)
                 .addFields(
-                    { name: '⭐ Tu Nuevo nivel es:', value: `**${userXpData.level}**`, inline: true },
-                    { name: '✨ Esta estu XP:', value: `**${userXpData.xp} / ${userXpData.level * 1000}**`, inline: true }
+                    { name: '⭐ Tu Nuevo nivel es:', value: `**${userXpData.level}**` },
+                    { name: '✨ Esta estu XP:', value: `**${userXpData.xp}**` }
                 )
                 .setFooter({ text: 'Sistema de XP • Zeus', iconURL: client.user.displayAvatarURL() });
 
-            // ID de tu canal exclusivo de Niveles
-const CANAL_NIVELES_ID = "1346670096789278730";
-
-const canalNiveles = message.guild.channels.cache.get(CANAL_NIVELES_ID);
-if (canalNiveles) {
-    await canalNiveles.send({ embeds: [levelEmbed] });
-}
+            const CANAL_NIVELES_ID = "1346670096789278730";
+            const canalNiveles = message.guild.channels.cache.get(CANAL_NIVELES_ID);
+            if (canalNiveles) {
+                await canalNiveles.send({ embeds: [levelEmbed] });
+            }
+        }
 
         if (message.member) {
-            await checkearRolesPorNombre(message.member, userXpData.level, message.guild);
+            await checkearRolesPorNombre(message.member, userXpData.level);
         }
-    } catch (error) {
-        console.error("Clavo con la XP:", error);
-    }
 
 // --- COMANDOS SLASH ---
 client.on('interactionCreate', async interaction => {
