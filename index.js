@@ -307,7 +307,7 @@ client.on('messageCreate', async message => {
                 .setFooter({ text: 'Sistema de XP • Zeus', iconURL: client.user.displayAvatarURL() });
 
             // ID de tu canal exclusivo de Niveles
-const CANAL_NIVELES_ID = "TUS_NUMEROS_DE_CANAL_DE_NIVELES_AQUI";
+const CANAL_NIVELES_ID = "1346670096789278730";
 
 const canalNiveles = message.guild.channels.cache.get(CANAL_NIVELES_ID);
 if (canalNiveles) {
